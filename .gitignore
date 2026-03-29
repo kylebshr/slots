@@ -1,4 +1,5 @@
 .build/
 .swiftpm/
+.claude/
 *.o
 *.d
