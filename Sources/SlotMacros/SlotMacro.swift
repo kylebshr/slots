@@ -59,6 +59,15 @@ public struct SlotMacro: MemberMacro, ExtensionMacro {
         let slots = try collectSlots(from: declaration)
         guard !slots.isEmpty else { return [] }
 
+        let initCount = initCombinationCount(for: slots)
+        if initCount > maxInitCount {
+            context.diagnose(
+                Diagnostic(
+                    node: node,
+                    message: SlotError.tooManyInits(count: initCount, limit: maxInitCount)))
+            return []
+        }
+
         let groups = extensionGroups(for: slots, plain: plain, access: access)
         return groups.compactMap { (whereClause, specs) in
             buildExtension(type: type, whereClause: whereClause, specs: specs)
@@ -249,6 +258,20 @@ private func parseSlotOptions(from attr: AttributeSyntax) -> ParsedOptions {
     return result
 }
 
+// MARK: - Init count limit
+
+private let maxInitCount = 512
+
+private func initCombinationCount(for slots: [SlotDescriptor]) -> Int {
+    slots.reduce(1) { count, slot in
+        var modes = 1  // generic
+        if slot.hasText { modes += 2 }  // text + string
+        if slot.hasImage { modes += 1 }
+        if slot.isOptional { modes += 1 }  // empty
+        return count * modes
+    }
+}
+
 // MARK: - Cartesian product of slot modes
 
 private func allCombinations(for slots: [SlotDescriptor]) -> [[SlotMode]] {
@@ -381,6 +404,7 @@ private func formatInit(_ spec: InitSpec) -> String {
 enum SlotError: Error, CustomStringConvertible {
     case notAStruct
     case cannotResolveGenericForSlot(String)
+    case tooManyInits(count: Int, limit: Int)
 
     var description: String {
         switch self {
@@ -388,6 +412,9 @@ enum SlotError: Error, CustomStringConvertible {
             return "@Slots can only be applied to a struct"
         case .cannotResolveGenericForSlot(let name):
             return "@Slot on '\(name)': property type must be one of the struct's generic parameters"
+        case .tooManyInits(let count, let limit):
+            return
+                "@Slots would generate \(count) initializers (limit is \(limit)); reduce the number of slots or slot options to stay within the limit"
         }
     }
 }

@@ -968,4 +968,55 @@ final class SlotTests: XCTestCase {
         )
     }
 
+    // MARK: - Init limit test
+
+    func testTooManyInitsEmitsError() {
+        let testMacros: [String: Macro.Type] = ["Slots": SlotMacro.self, "Slot": SlotPropertyMacro.self]
+        // 7 slots all with .text + .image + optional = 5 modes each = 5^7 = 78,125 inits
+        assertMacroExpansion(
+            """
+            @Slots
+            struct Overload<A: View, B: View, C: View, D: View, E: View, F: View, G: View>: View {
+                @Slot(.text, .image) var a: A?
+                @Slot(.text, .image) var b: B?
+                @Slot(.text, .image) var c: C?
+                @Slot(.text, .image) var d: D?
+                @Slot(.text, .image) var e: E?
+                @Slot(.text, .image) var f: F?
+                @Slot(.text, .image) var g: G?
+                var body: some View { EmptyView() }
+            }
+            """,
+            expandedSource: """
+                struct Overload<A: View, B: View, C: View, D: View, E: View, F: View, G: View>: View {
+                    var a: A?
+                    var b: B?
+                    var c: C?
+                    var d: D?
+                    var e: E?
+                    var f: F?
+                    var g: G?
+                    var body: some View { EmptyView() }
+
+                    init(@ViewBuilder a: () -> A, @ViewBuilder b: () -> B, @ViewBuilder c: () -> C, @ViewBuilder d: () -> D, @ViewBuilder e: () -> E, @ViewBuilder f: () -> F, @ViewBuilder g: () -> G) {
+                        self.a = a()
+                        self.b = b()
+                        self.c = c()
+                        self.d = d()
+                        self.e = e()
+                        self.f = f()
+                        self.g = g()
+                    }
+                }
+                """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message:
+                        "@Slots would generate 78125 initializers (limit is 512); reduce the number of slots or slot options to stay within the limit",
+                    line: 1, column: 1)
+            ],
+            macros: testMacros
+        )
+    }
+
 }
