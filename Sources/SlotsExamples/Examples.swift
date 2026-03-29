@@ -22,13 +22,13 @@ import SwiftUI
 
 // MARK: - Banner (1 slot)
 
+public enum BannerStyle {
+    case info, warning, error
+}
+
 @Slots public struct Banner<Message: View>: View {
     @Slot(.text) var message: Message
     var style: BannerStyle
-
-    public enum BannerStyle {
-        case info, warning, error
-    }
 
     public var body: some View {
         HStack {
@@ -180,9 +180,9 @@ struct Examples_Previews: PreviewProvider {
                 Chip(iconSystemName: "star.fill", label: "Featured", accessory: { EmptyView() })
 
                 // Banner examples
-                Banner(style: .info, message: "Sync complete.")
-                Banner(style: .warning, message: "Storage nearly full.")
-                Banner(style: .error, message: "Upload failed.")
+                Banner(message: "Sync complete.", style: .info)
+                Banner(message: "Storage nearly full.", style: .warning)
+                Banner(message: "Upload failed.", style: .error)
 
                 // ListRow examples
                 ListRow(content: "Wi-Fi", trailing: "Connected")

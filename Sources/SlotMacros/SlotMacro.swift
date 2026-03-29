@@ -16,17 +16,21 @@ public struct SlotMacro: MemberMacro, ExtensionMacro {
     ) throws -> [DeclSyntax] {
         let access = accessModifier(of: declaration)
         let plain = collectPlainProperties(from: declaration)
-        let slots = try collectSlots(from: declaration)
+        let slots = collectSlots(from: declaration, node: node, context: context)
         guard !slots.isEmpty else { return [] }
 
-        var entries =
+        var entries: [ParamEntry] =
             plain.map { paramEntry(for: $0) }
-            + slots.map {
-                ParamEntry(
-                    param: "@ViewBuilder \($0.name): () -> \($0.genericParam)",
-                    assignment: "self.\($0.name) = \($0.name)()",
+            + slots.map { slot in
+                let assignment =
+                    slot.isOptional
+                    ? "self.\(slot.name) = Optional(\(slot.name)())"
+                    : "self.\(slot.name) = \(slot.name)()"
+                return ParamEntry(
+                    param: "@ViewBuilder \(slot.name): () -> \(slot.genericParam)",
+                    assignment: assignment,
                     tier: .viewBuilder,
-                    declarationIndex: $0.declarationIndex
+                    declarationIndex: slot.declarationIndex
                 )
             }
         entries.sort { ($0.tier, $0.declarationIndex) < ($1.tier, $1.declarationIndex) }
@@ -54,7 +58,7 @@ public struct SlotMacro: MemberMacro, ExtensionMacro {
     ) throws -> [ExtensionDeclSyntax] {
         let access = accessModifier(of: declaration)
         let plain = collectPlainProperties(from: declaration)
-        let slots = try collectSlots(from: declaration)
+        let slots = collectSlots(from: declaration, node: node, context: context)
         guard !slots.isEmpty else { return [] }
 
         let initCount = initCombinationCount(for: slots)
@@ -116,9 +120,13 @@ private func collectPlainProperties(from declaration: some DeclGroupSyntax) -> [
         structDecl.genericParameterClause?.parameters.map { $0.name.text } ?? []
     )
 
+    let skippedModifiers: Set<String> = ["static", "class", "lazy"]
+
     return structDecl.memberBlock.members.enumerated().flatMap { memberIndex, member -> [PlainProperty] in
         guard
             let varDecl = member.decl.as(VariableDeclSyntax.self),
+            // Skip static, class, and lazy properties
+            !varDecl.modifiers.contains(where: { skippedModifiers.contains($0.name.text) }),
             // Not annotated with @Slot
             !varDecl.attributes.contains(where: {
                 $0.as(AttributeSyntax.self)?.attributeName
@@ -277,24 +285,35 @@ private struct InitSpec {
 
 // MARK: - Collecting @Slot-annotated properties
 
-private func collectSlots(from declaration: some DeclGroupSyntax) throws -> [SlotDescriptor] {
+private func collectSlots(
+    from declaration: some DeclGroupSyntax,
+    node: AttributeSyntax,
+    context: some MacroExpansionContext
+) -> [SlotDescriptor] {
     guard let structDecl = declaration.as(StructDeclSyntax.self) else {
-        throw SlotError.notAStruct
+        context.diagnose(Diagnostic(node: node, message: SlotError.notAStruct))
+        return []
     }
 
     let genericNames = Set(
         structDecl.genericParameterClause?.parameters.map { $0.name.text } ?? []
     )
 
-    return try structDecl.memberBlock.members.enumerated().flatMap { memberIndex, member -> [SlotDescriptor] in
-        guard let varDecl = member.decl.as(VariableDeclSyntax.self) else { return [] }
+    let skippedModifiers: Set<String> = ["static", "class", "lazy"]
+
+    return structDecl.memberBlock.members.enumerated().flatMap { memberIndex, member -> [SlotDescriptor] in
+        guard
+            let varDecl = member.decl.as(VariableDeclSyntax.self),
+            // Skip static, class, and lazy properties
+            !varDecl.modifiers.contains(where: { skippedModifiers.contains($0.name.text) })
+        else { return [] }
 
         let slotAttr = varDecl.attributes.first(where: {
             $0.as(AttributeSyntax.self)?.attributeName
                 .as(IdentifierTypeSyntax.self)?.name.text == "Slot"
         })?.as(AttributeSyntax.self)
 
-        return try varDecl.bindings.compactMap { binding -> SlotDescriptor? in
+        return varDecl.bindings.compactMap { binding -> SlotDescriptor? in
             guard
                 binding.accessorBlock == nil,
                 let identifier = binding.pattern.as(IdentifierPatternSyntax.self),
@@ -328,7 +347,10 @@ private func collectSlots(from declaration: some DeclGroupSyntax) throws -> [Slo
             }
 
             // @Slot on a non-generic type is an error
-            if slotAttr != nil { throw SlotError.cannotResolveGenericForSlot(propertyName) }
+            if let attr = slotAttr {
+                context.diagnose(
+                    Diagnostic(node: attr, message: SlotError.cannotResolveGenericForSlot(propertyName)))
+            }
             return nil
         }
     }
@@ -411,10 +433,14 @@ private func extensionGroups(
         for (slot, mode) in zip(slots, combo) {
             switch mode {
             case .generic:
+                let genericAssignment =
+                    slot.isOptional
+                    ? "self.\(slot.name) = Optional(\(slot.name)())"
+                    : "self.\(slot.name) = \(slot.name)()"
                 entries.append(
                     ParamEntry(
                         param: "@ViewBuilder \(slot.name): () -> \(slot.genericParam)",
-                        assignment: "self.\(slot.name) = \(slot.name)()",
+                        assignment: genericAssignment,
                         tier: .viewBuilder,
                         declarationIndex: slot.declarationIndex
                     ))

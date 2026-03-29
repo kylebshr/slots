@@ -3,13 +3,16 @@ import SwiftSyntaxMacros
 import SwiftSyntaxMacrosTestSupport
 import XCTest
 
+nonisolated(unsafe) private let testMacros: [String: Macro.Type] = [
+    "Slots": SlotMacro.self, "Slot": SlotPropertyMacro.self,
+]
+
 @MainActor
 final class SlotTests: XCTestCase {
 
     // MARK: - Single slot tests
 
     func testSingleSlotText() {
-        let testMacros: [String: Macro.Type] = ["Slots": SlotMacro.self, "Slot": SlotPropertyMacro.self]
         assertMacroExpansion(
             """
             @Slots
@@ -44,7 +47,6 @@ final class SlotTests: XCTestCase {
     }
 
     func testSingleSlotOptional() {
-        let testMacros: [String: Macro.Type] = ["Slots": SlotMacro.self, "Slot": SlotPropertyMacro.self]
         assertMacroExpansion(
             """
             @Slots
@@ -59,7 +61,7 @@ final class SlotTests: XCTestCase {
                     var body: some View { EmptyView() }
 
                     init(@ViewBuilder icon: () -> Icon) {
-                        self.icon = icon()
+                        self.icon = Optional(icon())
                     }
                 }
 
@@ -74,7 +76,6 @@ final class SlotTests: XCTestCase {
     }
 
     func testSingleSlotTextOptional() {
-        let testMacros: [String: Macro.Type] = ["Slots": SlotMacro.self, "Slot": SlotPropertyMacro.self]
         assertMacroExpansion(
             """
             @Slots
@@ -89,7 +90,7 @@ final class SlotTests: XCTestCase {
                     var body: some View { EmptyView() }
 
                     init(@ViewBuilder label: () -> Label) {
-                        self.label = label()
+                        self.label = Optional(label())
                     }
                 }
 
@@ -121,7 +122,6 @@ final class SlotTests: XCTestCase {
     // MARK: - Two slot tests
 
     func testTwoSlotsTextAndOptional() {
-        let testMacros: [String: Macro.Type] = ["Slots": SlotMacro.self, "Slot": SlotPropertyMacro.self]
         assertMacroExpansion(
             """
             @Slots
@@ -139,7 +139,7 @@ final class SlotTests: XCTestCase {
 
                     init(@ViewBuilder title: () -> Title, @ViewBuilder actions: () -> Actions) {
                         self.title = title()
-                        self.actions = actions()
+                        self.actions = Optional(actions())
                     }
                 }
 
@@ -153,13 +153,13 @@ final class SlotTests: XCTestCase {
                 extension Card where Title == Text {
                     init(title: LocalizedStringKey, @ViewBuilder actions: () -> Actions) {
                         self.title = Text(title)
-                        self.actions = actions()
+                        self.actions = Optional(actions())
                     }
 
                     @_disfavoredOverload
                     init(title: String, @ViewBuilder actions: () -> Actions) {
                         self.title = Text(title)
-                        self.actions = actions()
+                        self.actions = Optional(actions())
                     }
                 }
 
@@ -181,7 +181,6 @@ final class SlotTests: XCTestCase {
     }
 
     func testTwoSlotsText() {
-        let testMacros: [String: Macro.Type] = ["Slots": SlotMacro.self, "Slot": SlotPropertyMacro.self]
         assertMacroExpansion(
             """
             @Slots
@@ -199,7 +198,7 @@ final class SlotTests: XCTestCase {
 
                     init(@ViewBuilder title: () -> Title, @ViewBuilder footer: () -> Footer) {
                         self.title = title()
-                        self.footer = footer()
+                        self.footer = Optional(footer())
                     }
                 }
 
@@ -213,13 +212,13 @@ final class SlotTests: XCTestCase {
                 extension Card where Title == Text {
                     init(title: LocalizedStringKey, @ViewBuilder footer: () -> Footer) {
                         self.title = Text(title)
-                        self.footer = footer()
+                        self.footer = Optional(footer())
                     }
 
                     @_disfavoredOverload
                     init(title: String, @ViewBuilder footer: () -> Footer) {
                         self.title = Text(title)
-                        self.footer = footer()
+                        self.footer = Optional(footer())
                     }
                 }
 
@@ -243,7 +242,6 @@ final class SlotTests: XCTestCase {
     // MARK: - Three slot test
 
     func testThreeSlots() {
-        let testMacros: [String: Macro.Type] = ["Slots": SlotMacro.self, "Slot": SlotPropertyMacro.self]
         assertMacroExpansion(
             """
             @Slots
@@ -264,7 +262,7 @@ final class SlotTests: XCTestCase {
                     init(@ViewBuilder title: () -> Title, @ViewBuilder subtitle: () -> Subtitle, @ViewBuilder actions: () -> Actions) {
                         self.title = title()
                         self.subtitle = subtitle()
-                        self.actions = actions()
+                        self.actions = Optional(actions())
                     }
                 }
 
@@ -280,14 +278,14 @@ final class SlotTests: XCTestCase {
                     init(subtitle: LocalizedStringKey, @ViewBuilder title: () -> Title, @ViewBuilder actions: () -> Actions) {
                         self.subtitle = Text(subtitle)
                         self.title = title()
-                        self.actions = actions()
+                        self.actions = Optional(actions())
                     }
 
                     @_disfavoredOverload
                     init(subtitle: String, @ViewBuilder title: () -> Title, @ViewBuilder actions: () -> Actions) {
                         self.subtitle = Text(subtitle)
                         self.title = title()
-                        self.actions = actions()
+                        self.actions = Optional(actions())
                     }
                 }
 
@@ -310,14 +308,14 @@ final class SlotTests: XCTestCase {
                     init(title: LocalizedStringKey, @ViewBuilder subtitle: () -> Subtitle, @ViewBuilder actions: () -> Actions) {
                         self.title = Text(title)
                         self.subtitle = subtitle()
-                        self.actions = actions()
+                        self.actions = Optional(actions())
                     }
 
                     @_disfavoredOverload
                     init(title: String, @ViewBuilder subtitle: () -> Subtitle, @ViewBuilder actions: () -> Actions) {
                         self.title = Text(title)
                         self.subtitle = subtitle()
-                        self.actions = actions()
+                        self.actions = Optional(actions())
                     }
                 }
 
@@ -340,28 +338,28 @@ final class SlotTests: XCTestCase {
                     init(title: LocalizedStringKey, subtitle: LocalizedStringKey, @ViewBuilder actions: () -> Actions) {
                         self.title = Text(title)
                         self.subtitle = Text(subtitle)
-                        self.actions = actions()
+                        self.actions = Optional(actions())
                     }
 
                     @_disfavoredOverload
                     init(title: LocalizedStringKey, subtitle: String, @ViewBuilder actions: () -> Actions) {
                         self.title = Text(title)
                         self.subtitle = Text(subtitle)
-                        self.actions = actions()
+                        self.actions = Optional(actions())
                     }
 
                     @_disfavoredOverload
                     init(title: String, subtitle: LocalizedStringKey, @ViewBuilder actions: () -> Actions) {
                         self.title = Text(title)
                         self.subtitle = Text(subtitle)
-                        self.actions = actions()
+                        self.actions = Optional(actions())
                     }
 
                     @_disfavoredOverload
                     init(title: String, subtitle: String, @ViewBuilder actions: () -> Actions) {
                         self.title = Text(title)
                         self.subtitle = Text(subtitle)
-                        self.actions = actions()
+                        self.actions = Optional(actions())
                     }
                 }
 
@@ -401,7 +399,6 @@ final class SlotTests: XCTestCase {
     // MARK: - Four slot test
 
     func testFourSlots() {
-        let testMacros: [String: Macro.Type] = ["Slots": SlotMacro.self, "Slot": SlotPropertyMacro.self]
         assertMacroExpansion(
             """
             @Slots
@@ -423,16 +420,16 @@ final class SlotTests: XCTestCase {
 
                     init(@ViewBuilder title: () -> Title, @ViewBuilder subtitle: () -> Subtitle, @ViewBuilder body_: () -> Body, @ViewBuilder footer: () -> Footer) {
                         self.title = title()
-                        self.subtitle = subtitle()
+                        self.subtitle = Optional(subtitle())
                         self.body_ = body_()
-                        self.footer = footer()
+                        self.footer = Optional(footer())
                     }
                 }
 
                 extension Card where Footer == Never {
                     init(@ViewBuilder title: () -> Title, @ViewBuilder subtitle: () -> Subtitle, @ViewBuilder body_: () -> Body) {
                         self.title = title()
-                        self.subtitle = subtitle()
+                        self.subtitle = Optional(subtitle())
                         self.body_ = body_()
                         self.footer = nil
                     }
@@ -442,16 +439,16 @@ final class SlotTests: XCTestCase {
                     init(body_: LocalizedStringKey, @ViewBuilder title: () -> Title, @ViewBuilder subtitle: () -> Subtitle, @ViewBuilder footer: () -> Footer) {
                         self.body_ = Text(body_)
                         self.title = title()
-                        self.subtitle = subtitle()
-                        self.footer = footer()
+                        self.subtitle = Optional(subtitle())
+                        self.footer = Optional(footer())
                     }
 
                     @_disfavoredOverload
                     init(body_: String, @ViewBuilder title: () -> Title, @ViewBuilder subtitle: () -> Subtitle, @ViewBuilder footer: () -> Footer) {
                         self.body_ = Text(body_)
                         self.title = title()
-                        self.subtitle = subtitle()
-                        self.footer = footer()
+                        self.subtitle = Optional(subtitle())
+                        self.footer = Optional(footer())
                     }
                 }
 
@@ -459,7 +456,7 @@ final class SlotTests: XCTestCase {
                     init(body_: LocalizedStringKey, @ViewBuilder title: () -> Title, @ViewBuilder subtitle: () -> Subtitle) {
                         self.body_ = Text(body_)
                         self.title = title()
-                        self.subtitle = subtitle()
+                        self.subtitle = Optional(subtitle())
                         self.footer = nil
                     }
 
@@ -467,7 +464,7 @@ final class SlotTests: XCTestCase {
                     init(body_: String, @ViewBuilder title: () -> Title, @ViewBuilder subtitle: () -> Subtitle) {
                         self.body_ = Text(body_)
                         self.title = title()
-                        self.subtitle = subtitle()
+                        self.subtitle = Optional(subtitle())
                         self.footer = nil
                     }
                 }
@@ -476,7 +473,7 @@ final class SlotTests: XCTestCase {
                     init(@ViewBuilder title: () -> Title, @ViewBuilder body_: () -> Body, @ViewBuilder footer: () -> Footer) {
                         self.title = title()
                         self.body_ = body_()
-                        self.footer = footer()
+                        self.footer = Optional(footer())
                         self.subtitle = nil
                     }
                 }
@@ -494,7 +491,7 @@ final class SlotTests: XCTestCase {
                     init(body_: LocalizedStringKey, @ViewBuilder title: () -> Title, @ViewBuilder footer: () -> Footer) {
                         self.body_ = Text(body_)
                         self.title = title()
-                        self.footer = footer()
+                        self.footer = Optional(footer())
                         self.subtitle = nil
                     }
 
@@ -502,7 +499,7 @@ final class SlotTests: XCTestCase {
                     init(body_: String, @ViewBuilder title: () -> Title, @ViewBuilder footer: () -> Footer) {
                         self.body_ = Text(body_)
                         self.title = title()
-                        self.footer = footer()
+                        self.footer = Optional(footer())
                         self.subtitle = nil
                     }
                 }
@@ -527,24 +524,24 @@ final class SlotTests: XCTestCase {
                 extension Card where Title == Text {
                     init(title: LocalizedStringKey, @ViewBuilder subtitle: () -> Subtitle, @ViewBuilder body_: () -> Body, @ViewBuilder footer: () -> Footer) {
                         self.title = Text(title)
-                        self.subtitle = subtitle()
+                        self.subtitle = Optional(subtitle())
                         self.body_ = body_()
-                        self.footer = footer()
+                        self.footer = Optional(footer())
                     }
 
                     @_disfavoredOverload
                     init(title: String, @ViewBuilder subtitle: () -> Subtitle, @ViewBuilder body_: () -> Body, @ViewBuilder footer: () -> Footer) {
                         self.title = Text(title)
-                        self.subtitle = subtitle()
+                        self.subtitle = Optional(subtitle())
                         self.body_ = body_()
-                        self.footer = footer()
+                        self.footer = Optional(footer())
                     }
                 }
 
                 extension Card where Title == Text, Footer == Never {
                     init(title: LocalizedStringKey, @ViewBuilder subtitle: () -> Subtitle, @ViewBuilder body_: () -> Body) {
                         self.title = Text(title)
-                        self.subtitle = subtitle()
+                        self.subtitle = Optional(subtitle())
                         self.body_ = body_()
                         self.footer = nil
                     }
@@ -552,7 +549,7 @@ final class SlotTests: XCTestCase {
                     @_disfavoredOverload
                     init(title: String, @ViewBuilder subtitle: () -> Subtitle, @ViewBuilder body_: () -> Body) {
                         self.title = Text(title)
-                        self.subtitle = subtitle()
+                        self.subtitle = Optional(subtitle())
                         self.body_ = body_()
                         self.footer = nil
                     }
@@ -562,32 +559,32 @@ final class SlotTests: XCTestCase {
                     init(title: LocalizedStringKey, body_: LocalizedStringKey, @ViewBuilder subtitle: () -> Subtitle, @ViewBuilder footer: () -> Footer) {
                         self.title = Text(title)
                         self.body_ = Text(body_)
-                        self.subtitle = subtitle()
-                        self.footer = footer()
+                        self.subtitle = Optional(subtitle())
+                        self.footer = Optional(footer())
                     }
 
                     @_disfavoredOverload
                     init(title: LocalizedStringKey, body_: String, @ViewBuilder subtitle: () -> Subtitle, @ViewBuilder footer: () -> Footer) {
                         self.title = Text(title)
                         self.body_ = Text(body_)
-                        self.subtitle = subtitle()
-                        self.footer = footer()
+                        self.subtitle = Optional(subtitle())
+                        self.footer = Optional(footer())
                     }
 
                     @_disfavoredOverload
                     init(title: String, body_: LocalizedStringKey, @ViewBuilder subtitle: () -> Subtitle, @ViewBuilder footer: () -> Footer) {
                         self.title = Text(title)
                         self.body_ = Text(body_)
-                        self.subtitle = subtitle()
-                        self.footer = footer()
+                        self.subtitle = Optional(subtitle())
+                        self.footer = Optional(footer())
                     }
 
                     @_disfavoredOverload
                     init(title: String, body_: String, @ViewBuilder subtitle: () -> Subtitle, @ViewBuilder footer: () -> Footer) {
                         self.title = Text(title)
                         self.body_ = Text(body_)
-                        self.subtitle = subtitle()
-                        self.footer = footer()
+                        self.subtitle = Optional(subtitle())
+                        self.footer = Optional(footer())
                     }
                 }
 
@@ -595,7 +592,7 @@ final class SlotTests: XCTestCase {
                     init(title: LocalizedStringKey, body_: LocalizedStringKey, @ViewBuilder subtitle: () -> Subtitle) {
                         self.title = Text(title)
                         self.body_ = Text(body_)
-                        self.subtitle = subtitle()
+                        self.subtitle = Optional(subtitle())
                         self.footer = nil
                     }
 
@@ -603,7 +600,7 @@ final class SlotTests: XCTestCase {
                     init(title: LocalizedStringKey, body_: String, @ViewBuilder subtitle: () -> Subtitle) {
                         self.title = Text(title)
                         self.body_ = Text(body_)
-                        self.subtitle = subtitle()
+                        self.subtitle = Optional(subtitle())
                         self.footer = nil
                     }
 
@@ -611,7 +608,7 @@ final class SlotTests: XCTestCase {
                     init(title: String, body_: LocalizedStringKey, @ViewBuilder subtitle: () -> Subtitle) {
                         self.title = Text(title)
                         self.body_ = Text(body_)
-                        self.subtitle = subtitle()
+                        self.subtitle = Optional(subtitle())
                         self.footer = nil
                     }
 
@@ -619,7 +616,7 @@ final class SlotTests: XCTestCase {
                     init(title: String, body_: String, @ViewBuilder subtitle: () -> Subtitle) {
                         self.title = Text(title)
                         self.body_ = Text(body_)
-                        self.subtitle = subtitle()
+                        self.subtitle = Optional(subtitle())
                         self.footer = nil
                     }
                 }
@@ -628,7 +625,7 @@ final class SlotTests: XCTestCase {
                     init(title: LocalizedStringKey, @ViewBuilder body_: () -> Body, @ViewBuilder footer: () -> Footer) {
                         self.title = Text(title)
                         self.body_ = body_()
-                        self.footer = footer()
+                        self.footer = Optional(footer())
                         self.subtitle = nil
                     }
 
@@ -636,7 +633,7 @@ final class SlotTests: XCTestCase {
                     init(title: String, @ViewBuilder body_: () -> Body, @ViewBuilder footer: () -> Footer) {
                         self.title = Text(title)
                         self.body_ = body_()
-                        self.footer = footer()
+                        self.footer = Optional(footer())
                         self.subtitle = nil
                     }
                 }
@@ -662,7 +659,7 @@ final class SlotTests: XCTestCase {
                     init(title: LocalizedStringKey, body_: LocalizedStringKey, @ViewBuilder footer: () -> Footer) {
                         self.title = Text(title)
                         self.body_ = Text(body_)
-                        self.footer = footer()
+                        self.footer = Optional(footer())
                         self.subtitle = nil
                     }
 
@@ -670,7 +667,7 @@ final class SlotTests: XCTestCase {
                     init(title: LocalizedStringKey, body_: String, @ViewBuilder footer: () -> Footer) {
                         self.title = Text(title)
                         self.body_ = Text(body_)
-                        self.footer = footer()
+                        self.footer = Optional(footer())
                         self.subtitle = nil
                     }
 
@@ -678,7 +675,7 @@ final class SlotTests: XCTestCase {
                     init(title: String, body_: LocalizedStringKey, @ViewBuilder footer: () -> Footer) {
                         self.title = Text(title)
                         self.body_ = Text(body_)
-                        self.footer = footer()
+                        self.footer = Optional(footer())
                         self.subtitle = nil
                     }
 
@@ -686,7 +683,7 @@ final class SlotTests: XCTestCase {
                     init(title: String, body_: String, @ViewBuilder footer: () -> Footer) {
                         self.title = Text(title)
                         self.body_ = Text(body_)
-                        self.footer = footer()
+                        self.footer = Optional(footer())
                         self.subtitle = nil
                     }
                 }
@@ -731,7 +728,6 @@ final class SlotTests: XCTestCase {
     // Plain stored properties WITH a default value appear in every generated init
     // with the default value, so callers can omit or override them.
     func testPlainPropertyWithDefault() {
-        let testMacros: [String: Macro.Type] = ["Slots": SlotMacro.self, "Slot": SlotPropertyMacro.self]
         assertMacroExpansion(
             """
             @Slots
@@ -775,7 +771,6 @@ final class SlotTests: XCTestCase {
     // Plain stored properties — required ones appear as required params, defaulted ones
     // appear with their default value so callers can omit or override them.
     func testPlainPropertyWithoutDefault() {
-        let testMacros: [String: Macro.Type] = ["Slots": SlotMacro.self, "Slot": SlotPropertyMacro.self]
         assertMacroExpansion(
             """
             @Slots
@@ -798,7 +793,7 @@ final class SlotTests: XCTestCase {
                     init(isEnabled: Bool, badge: Int = 0, @ViewBuilder icon: () -> Icon, @ViewBuilder label: () -> Label) {
                         self.isEnabled = isEnabled
                         self.badge = badge
-                        self.icon = icon()
+                        self.icon = Optional(icon())
                         self.label = label()
                     }
                 }
@@ -808,7 +803,7 @@ final class SlotTests: XCTestCase {
                         self.isEnabled = isEnabled
                         self.badge = badge
                         self.label = Text(label)
-                        self.icon = icon()
+                        self.icon = Optional(icon())
                     }
 
                     @_disfavoredOverload
@@ -816,7 +811,7 @@ final class SlotTests: XCTestCase {
                         self.isEnabled = isEnabled
                         self.badge = badge
                         self.label = Text(label)
-                        self.icon = icon()
+                        self.icon = Optional(icon())
                     }
                 }
 
@@ -851,7 +846,6 @@ final class SlotTests: XCTestCase {
     }
 
     func testOptionalPlainPropertyDefaultsToNil() {
-        let testMacros: [String: Macro.Type] = ["Slots": SlotMacro.self, "Slot": SlotPropertyMacro.self]
         assertMacroExpansion(
             """
             @Slots
@@ -898,7 +892,6 @@ final class SlotTests: XCTestCase {
     // MARK: - Image slot tests
 
     func testSingleSlotImage() {
-        let testMacros: [String: Macro.Type] = ["Slots": SlotMacro.self, "Slot": SlotPropertyMacro.self]
         assertMacroExpansion(
             """
             @Slots
@@ -928,7 +921,6 @@ final class SlotTests: XCTestCase {
     }
 
     func testImageAndTextSlots() {
-        let testMacros: [String: Macro.Type] = ["Slots": SlotMacro.self, "Slot": SlotPropertyMacro.self]
         assertMacroExpansion(
             """
             @Slots
@@ -945,7 +937,7 @@ final class SlotTests: XCTestCase {
                     var body: some View { EmptyView() }
 
                     init(@ViewBuilder icon: () -> Icon, @ViewBuilder label: () -> Label) {
-                        self.icon = icon()
+                        self.icon = Optional(icon())
                         self.label = label()
                     }
                 }
@@ -953,13 +945,13 @@ final class SlotTests: XCTestCase {
                 extension Chip where Label == Text {
                     init(label: LocalizedStringKey, @ViewBuilder icon: () -> Icon) {
                         self.label = Text(label)
-                        self.icon = icon()
+                        self.icon = Optional(icon())
                     }
 
                     @_disfavoredOverload
                     init(label: String, @ViewBuilder icon: () -> Icon) {
                         self.label = Text(label)
-                        self.icon = icon()
+                        self.icon = Optional(icon())
                     }
                 }
 
@@ -1016,7 +1008,6 @@ final class SlotTests: XCTestCase {
     // MARK: - Parameter ordering tests
 
     func testClosurePropertyOrdering() {
-        let testMacros: [String: Macro.Type] = ["Slots": SlotMacro.self, "Slot": SlotPropertyMacro.self]
         assertMacroExpansion(
             """
             @Slots
@@ -1056,7 +1047,6 @@ final class SlotTests: XCTestCase {
     }
 
     func testParameterTierOrdering() {
-        let testMacros: [String: Macro.Type] = ["Slots": SlotMacro.self, "Slot": SlotPropertyMacro.self]
         // Verifies: value params → closure params → @ViewBuilder params
         assertMacroExpansion(
             """
@@ -1081,7 +1071,7 @@ final class SlotTests: XCTestCase {
                         self.style = style
                         self.onTap = onTap
                         self.label = label()
-                        self.trailing = trailing()
+                        self.trailing = Optional(trailing())
                     }
                 }
 
@@ -1099,7 +1089,7 @@ final class SlotTests: XCTestCase {
                         self.style = style
                         self.label = Text(label)
                         self.onTap = onTap
-                        self.trailing = trailing()
+                        self.trailing = Optional(trailing())
                     }
 
                     @_disfavoredOverload
@@ -1107,7 +1097,7 @@ final class SlotTests: XCTestCase {
                         self.style = style
                         self.label = Text(label)
                         self.onTap = onTap
-                        self.trailing = trailing()
+                        self.trailing = Optional(trailing())
                     }
                 }
 
@@ -1135,7 +1125,6 @@ final class SlotTests: XCTestCase {
     // MARK: - Property wrapper tests
 
     func testBindingProperty() {
-        let testMacros: [String: Macro.Type] = ["Slots": SlotMacro.self, "Slot": SlotPropertyMacro.self]
         assertMacroExpansion(
             """
             @Slots
@@ -1175,7 +1164,6 @@ final class SlotTests: XCTestCase {
     }
 
     func testStatePropertySkipped() {
-        let testMacros: [String: Macro.Type] = ["Slots": SlotMacro.self, "Slot": SlotPropertyMacro.self]
         assertMacroExpansion(
             """
             @Slots
@@ -1214,7 +1202,6 @@ final class SlotTests: XCTestCase {
     // MARK: - Init limit test
 
     func testTooManyInitsEmitsError() {
-        let testMacros: [String: Macro.Type] = ["Slots": SlotMacro.self, "Slot": SlotPropertyMacro.self]
         // 7 slots all with .text + .image + optional = 5 modes each = 5^7 = 78,125 inits
         assertMacroExpansion(
             """
@@ -1242,13 +1229,13 @@ final class SlotTests: XCTestCase {
                     var body: some View { EmptyView() }
 
                     init(@ViewBuilder a: () -> A, @ViewBuilder b: () -> B, @ViewBuilder c: () -> C, @ViewBuilder d: () -> D, @ViewBuilder e: () -> E, @ViewBuilder f: () -> F, @ViewBuilder g: () -> G) {
-                        self.a = a()
-                        self.b = b()
-                        self.c = c()
-                        self.d = d()
-                        self.e = e()
-                        self.f = f()
-                        self.g = g()
+                        self.a = Optional(a())
+                        self.b = Optional(b())
+                        self.c = Optional(c())
+                        self.d = Optional(d())
+                        self.e = Optional(e())
+                        self.f = Optional(f())
+                        self.g = Optional(g())
                     }
                 }
                 """,

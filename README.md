@@ -76,6 +76,7 @@ The `@Slot` property annotation accepts one or more options:
 | Option | Effect |
 |---|---|
 | `.text` | Adds `init` variants where this slot accepts `LocalizedStringKey` (preferred) or `String` (disfavored), both stored as `Text(...)` |
+| `.image` | Adds an `init` variant where this slot accepts `{name}SystemName: String`, stored as `Image(systemName:)` |
 
 ### Optional slots
 
