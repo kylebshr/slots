@@ -20,10 +20,10 @@ public struct SlotMacro: MemberMacro, ExtensionMacro {
         guard !slots.isEmpty else { return [] }
 
         let params = (plain.map { "\($0.name): \($0.typeStr)" }
-                    + slots.map { "\($0.name): \($0.genericParam)" })
+                    + slots.map { "@ViewBuilder \($0.name): () -> \($0.genericParam)" })
             .joined(separator: ", ")
         let assignments = (plain.map { "self.\($0.name) = \($0.name)" }
-                         + slots.map { "self.\($0.name) = \($0.name)" })
+                         + slots.map { "self.\($0.name) = \($0.name)()" })
             .joined(separator: "\n    ")
         let accessPrefix = access.map { "\($0) " } ?? ""
 
@@ -98,8 +98,11 @@ func collectPlainRequiredProperties(from declaration: some DeclGroupSyntax) -> [
                 $0.as(AttributeSyntax.self)?.attributeName
                     .as(IdentifierTypeSyntax.self)?.name.text == "Slot"
             }),
-            // Not a generic type parameter (those are slots)
+            // Not a generic type parameter (required slots) or optional generic (optional slots)
             !(typeAnnotation.as(IdentifierTypeSyntax.self)
+                .map { genericNames.contains($0.name.text) } ?? false),
+            !(typeAnnotation.as(OptionalTypeSyntax.self)?
+                .wrappedType.as(IdentifierTypeSyntax.self)
                 .map { genericNames.contains($0.name.text) } ?? false)
         else { return nil }
 
@@ -117,7 +120,6 @@ struct SlotDescriptor {
     let genericParam: String
     let isOptional: Bool
     let hasText: Bool
-    let hasString: Bool
 }
 
 // MARK: - Mode
@@ -126,7 +128,7 @@ enum SlotMode: Equatable {
     case generic  // caller passes any View
     case text     // fix to Text, LocalizedStringKey param, preferred
     case string   // fix to Text, String param, @_disfavoredOverload
-    case empty    // fix to EmptyView, parameter omitted
+    case empty    // fix to Never, parameter omitted (stores nil)
 }
 
 // MARK: - Init spec (one init inside an extension)
@@ -155,30 +157,36 @@ func collectSlots(from declaration: some DeclGroupSyntax) throws -> [SlotDescrip
             let binding = varDecl.bindings.first,
             binding.accessorBlock == nil,
             let identifier = binding.pattern.as(IdentifierPatternSyntax.self),
-            let slotAttr = varDecl.attributes.first(where: {
-                $0.as(AttributeSyntax.self)?.attributeName
-                    .as(IdentifierTypeSyntax.self)?.name.text == "Slot"
-            })?.as(AttributeSyntax.self)
+            let typeAnnotation = binding.typeAnnotation?.type
         else { return nil }
 
         let propertyName = identifier.identifier.text
+        let slotAttr = varDecl.attributes.first(where: {
+            $0.as(AttributeSyntax.self)?.attributeName
+                .as(IdentifierTypeSyntax.self)?.name.text == "Slot"
+        })?.as(AttributeSyntax.self)
 
-        guard
-            let typeAnnotation = binding.typeAnnotation?.type,
-            let genericName = typeAnnotation.as(IdentifierTypeSyntax.self).map({ $0.name.text }),
-            genericNames.contains(genericName)
-        else {
-            throw SlotError.cannotResolveGenericForSlot(propertyName)
+        // `Icon?` — always a slot, @Slot annotation optional
+        if let inner = typeAnnotation.as(OptionalTypeSyntax.self)?
+                .wrappedType.as(IdentifierTypeSyntax.self)?.name.text,
+           genericNames.contains(inner) {
+            let options = slotAttr.map { parseSlotOptions(from: $0) } ?? ParsedOptions()
+
+            return SlotDescriptor(name: propertyName, genericParam: inner, isOptional: true, hasText: options.contains(.text))
         }
 
-        let options = parseSlotOptions(from: slotAttr)
-        return SlotDescriptor(
-            name: propertyName,
-            genericParam: genericName,
-            isOptional: options.contains(.optional),
-            hasText: options.contains(.text),
-            hasString: options.contains(.string)
-        )
+        // `Icon` — slot only if @Slot annotated
+        if let name = typeAnnotation.as(IdentifierTypeSyntax.self)?.name.text,
+           genericNames.contains(name) {
+            guard slotAttr != nil else { return nil }
+            let options = parseSlotOptions(from: slotAttr!)
+
+            return SlotDescriptor(name: propertyName, genericParam: name, isOptional: false, hasText: options.contains(.text))
+        }
+
+        // @Slot on a non-generic type is an error
+        if slotAttr != nil { throw SlotError.cannotResolveGenericForSlot(propertyName) }
+        return nil
     }
 }
 
@@ -186,20 +194,15 @@ func collectSlots(from declaration: some DeclGroupSyntax) throws -> [SlotDescrip
 
 private struct ParsedOptions: OptionSet {
     let rawValue: Int
-    static let text     = ParsedOptions(rawValue: 1 << 0)
-    static let optional = ParsedOptions(rawValue: 1 << 1)
-    static let string   = ParsedOptions(rawValue: 1 << 2)
+    static let text = ParsedOptions(rawValue: 1 << 0)
 }
 
 private func parseSlotOptions(from attr: AttributeSyntax) -> ParsedOptions {
     var result = ParsedOptions()
     guard case let .argumentList(args) = attr.arguments else { return result }
     for arg in args {
-        switch arg.expression.as(MemberAccessExprSyntax.self)?.declName.baseName.text {
-        case "text":     result.insert(.text)
-        case "optional": result.insert(.optional)
-        case "string":   result.insert(.string)
-        default: break
+        if arg.expression.as(MemberAccessExprSyntax.self)?.declName.baseName.text == "text" {
+            result.insert(.text)
         }
     }
     return result
@@ -210,9 +213,8 @@ private func parseSlotOptions(from attr: AttributeSyntax) -> ParsedOptions {
 func allCombinations(for slots: [SlotDescriptor]) -> [[SlotMode]] {
     slots.reduce([[SlotMode]]()) { combos, slot in
         var modes: [SlotMode] = [.generic]
-        if slot.hasText    { modes.append(.text) }
-        if slot.hasString  { modes.append(.string) }
-        if slot.isOptional { modes.append(.empty) }
+        if slot.hasText { modes.append(.text); modes.append(.string) }
+        if slot.isOptional     { modes.append(.empty) }
 
         guard !combos.isEmpty else { return modes.map { [$0] } }
         return combos.flatMap { existing in modes.map { existing + [$0] } }
@@ -247,8 +249,8 @@ func extensionGroups(
         for (slot, mode) in zip(slots, combo) {
             switch mode {
             case .generic:
-                params.append("\(slot.name): \(slot.genericParam)")
-                assignments.append("self.\(slot.name) = \(slot.name)")
+                params.append("@ViewBuilder \(slot.name): () -> \(slot.genericParam)")
+                assignments.append("self.\(slot.name) = \(slot.name)()")
             case .text:
                 constraints.append("\(slot.genericParam) == Text")
                 params.append("\(slot.name): LocalizedStringKey")
@@ -259,8 +261,8 @@ func extensionGroups(
                 assignments.append("self.\(slot.name) = Text(\(slot.name))")
                 isDisfavored = true
             case .empty:
-                constraints.append("\(slot.genericParam) == EmptyView")
-                assignments.append("self.\(slot.name) = EmptyView()")
+                constraints.append("\(slot.genericParam) == Never")
+                assignments.append("self.\(slot.name) = nil")
             }
         }
 

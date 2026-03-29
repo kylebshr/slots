@@ -6,23 +6,23 @@ import Slot
 
 @Slotted
 struct Badge<Label: View>: View {
-    @Slot(.text, .string, .optional) var label: Label
+    @Slot(.text) var label: Label?
     var body: some View { EmptyView() }
 }
 
 @Slotted
 struct Card<Title: View, Actions: View>: View {
-    @Slot(.text, .string) var title: Title
-    @Slot(.optional)      var actions: Actions
+    @Slot(.text)     var title: Title
+    var actions: Actions?
     var body: some View { EmptyView() }
 }
 
 @Slotted
 struct Row<Leading: View, Content: View, Trailing: View>: View {
     var isSelected: Bool
-    @Slot(.optional)      var leading: Leading
-    @Slot(.text, .string) var content: Content
-    @Slot(.optional)      var trailing: Trailing
+    var leading: Leading?
+    @Slot(.text)     var content: Content
+    var trailing: Trailing?
     var body: some View { EmptyView() }
 }
 
@@ -37,45 +37,45 @@ final class SlotIntegrationTests: XCTestCase {
     // MARK: Badge — single slot, all option combos
 
     func testBadgeSingleSlot() {
-        // generic View
-        let _: Badge<Text>  = Badge(label: Text("hi"))
+        // generic View (ViewBuilder closure)
+        let _: Badge<Text>      = Badge { Text("hi") }
         // LocalizedStringKey → Label == Text
-        let _: Badge<Text>  = Badge(label: "hello")
+        let _: Badge<Text>      = Badge(label: "hello")
         // String (disfavored) → Label == Text
-        let _: Badge<Text>  = Badge(label: "hello" as String)
-        // omitted → Label == EmptyView
-        let _: Badge<EmptyView> = Badge()
+        let _: Badge<Text>      = Badge(label: "hello" as String)
+        // omitted → Label == Never
+        let _: Badge<Never>     = Badge()
     }
 
     // MARK: Card — two slots
 
     func testCardTwoSlots() {
-        // all generic
-        let _: Card<Text, Button<Text>>       = Card(title: Text("hi"), actions: Button("OK") {})
+        // all generic (ViewBuilder closures)
+        let _: Card<Text, Button<Text>>  = Card { Text("hi") } actions: { Button("OK") {} }
         // LocalizedStringKey title, generic actions
-        let _: Card<Text, Button<Text>>       = Card(title: "hi", actions: Button("OK") {})
+        let _: Card<Text, Button<Text>>  = Card(title: "hi", actions: { Button("OK") {} })
         // String title (disfavored), generic actions
-        let _: Card<Text, Button<Text>>       = Card(title: "hi" as String, actions: Button("OK") {})
-        // generic title, no actions
-        let _: Card<Text, EmptyView>          = Card(title: Text("hi"))
+        let _: Card<Text, Button<Text>>  = Card(title: "hi" as String, actions: { Button("OK") {} })
+        // generic title, no actions → Actions == Never
+        let _: Card<Text, Never>         = Card { Text("hi") }
         // LocalizedStringKey title, no actions
-        let _: Card<Text, EmptyView>          = Card(title: "hi")
+        let _: Card<Text, Never>         = Card(title: "hi")
         // String title (disfavored), no actions
-        let _: Card<Text, EmptyView>          = Card(title: "hi" as String)
+        let _: Card<Text, Never>         = Card(title: "hi" as String)
     }
 
     // MARK: Row — three slots + plain property
 
     func testRowThreeSlots() {
-        // all generic
-        let _: Row<Image, Text, Text>         = Row(isSelected: false, leading: Image(systemName: "star"), content: Text("hi"), trailing: Text("→"))
+        // all generic (ViewBuilder closures)
+        let _: Row<Image, Text, Text>           = Row(isSelected: false, leading: { Image(systemName: "star") }, content: { Text("hi") }, trailing: { Text("→") })
         // LocalizedStringKey content, generic leading + trailing
-        let _: Row<Image, Text, Text>         = Row(isSelected: true, leading: Image(systemName: "star"), content: "hi", trailing: Text("→"))
+        let _: Row<Image, Text, Text>           = Row(isSelected: true, leading: { Image(systemName: "star") }, content: "hi", trailing: { Text("→") })
         // no leading, LocalizedStringKey content, generic trailing
-        let _: Row<EmptyView, Text, Text>     = Row(isSelected: false, content: "hi", trailing: Text("→"))
+        let _: Row<Never, Text, Text>           = Row(isSelected: false, content: "hi", trailing: { Text("→") })
         // no leading, LocalizedStringKey content, no trailing
-        let _: Row<EmptyView, Text, EmptyView> = Row(isSelected: false, content: "hi")
+        let _: Row<Never, Text, Never>          = Row(isSelected: false, content: "hi")
         // no leading, no trailing, generic content
-        let _: Row<EmptyView, Text, EmptyView> = Row(isSelected: false, content: Text("hi"))
+        let _: Row<Never, Text, Never>          = Row(isSelected: false) { Text("hi") }
     }
 }

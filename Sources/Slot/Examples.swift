@@ -5,17 +5,19 @@ import SwiftUI
 /// Usage:
 /// ```swift
 /// Chip(label: "New")
-/// Chip(icon: Image(systemName: "star.fill"), label: "Featured")
+/// Chip(icon: { Image(systemName: "star.fill") }, label: "Featured")
 /// Chip(label: MyCustomLabel())
 /// ```
 @Slotted
 public struct Chip<Icon: View, Label: View>: View {
-    @Slot(.optional)      var icon: Icon
-    @Slot(.text, .string) var label: Label
+    var icon: Icon?
+
+    @Slot(.text)
+    var label: Label
 
     public var body: some View {
         HStack(spacing: 6) {
-            icon
+            if let icon { icon }
             label
                 .font(.caption.weight(.medium))
         }
@@ -32,7 +34,11 @@ struct Chip_Previews: PreviewProvider {
     static var previews: some View {
         VStack(spacing: 8) {
             Chip(label: "Hello")
-            Chip(icon: Image(systemName: "star.fill"), label: "Featured")
+            Chip(icon: { Image(systemName: "star.fill") }, label: "Featured")
+//            
+//            Chip(label: {
+//                Text("Hello").bold()
+//            })
         }
         .padding()
     }

@@ -23,13 +23,18 @@ final class SlotTests: XCTestCase {
                 var label: Label
                 var body: some View { EmptyView() }
 
-                init(label: Label) {
-                    self.label = label
+                init(@ViewBuilder label: () -> Label) {
+                    self.label = label()
                 }
             }
 
             extension Badge where Label == Text {
                 init(label: LocalizedStringKey) {
+                    self.label = Text(label)
+                }
+
+                @_disfavoredOverload
+                init(label: String) {
                     self.label = Text(label)
                 }
             }
@@ -38,29 +43,29 @@ final class SlotTests: XCTestCase {
         )
     }
 
-    func testSingleSlotOptional() {
+func testSingleSlotOptional() {
         let testMacros: [String: Macro.Type] = ["Slotted": SlotMacro.self, "Slot": SlotPropertyMacro.self]
         assertMacroExpansion(
             """
             @Slotted
             struct Row<Icon: View>: View {
-                @Slot(.optional) var icon: Icon
+                var icon: Icon?
                 var body: some View { EmptyView() }
             }
             """,
             expandedSource: """
             struct Row<Icon: View>: View {
-                var icon: Icon
+                var icon: Icon?
                 var body: some View { EmptyView() }
 
-                init(icon: Icon) {
-                    self.icon = icon
+                init(@ViewBuilder icon: () -> Icon) {
+                    self.icon = icon()
                 }
             }
 
-            extension Row where Icon == EmptyView {
+            extension Row where Icon == Never {
                 init() {
-                    self.icon = EmptyView()
+                    self.icon = nil
                 }
             }
             """,
@@ -68,89 +73,23 @@ final class SlotTests: XCTestCase {
         )
     }
 
-    func testSingleSlotString() {
+    func testSingleSlotTextOptional() {
         let testMacros: [String: Macro.Type] = ["Slotted": SlotMacro.self, "Slot": SlotPropertyMacro.self]
         assertMacroExpansion(
             """
             @Slotted
             struct Badge<Label: View>: View {
-                @Slot(.string) var label: Label
+                @Slot(.text) var label: Label?
                 var body: some View { EmptyView() }
             }
             """,
             expandedSource: """
             struct Badge<Label: View>: View {
-                var label: Label
+                var label: Label?
                 var body: some View { EmptyView() }
 
-                init(label: Label) {
-                    self.label = label
-                }
-            }
-
-            extension Badge where Label == Text {
-                @_disfavoredOverload
-                init(label: String) {
-                    self.label = Text(label)
-                }
-            }
-            """,
-            macros: testMacros
-        )
-    }
-
-    func testSingleSlotTextAndString() {
-        let testMacros: [String: Macro.Type] = ["Slotted": SlotMacro.self, "Slot": SlotPropertyMacro.self]
-        assertMacroExpansion(
-            """
-            @Slotted
-            struct Badge<Label: View>: View {
-                @Slot(.text, .string) var label: Label
-                var body: some View { EmptyView() }
-            }
-            """,
-            expandedSource: """
-            struct Badge<Label: View>: View {
-                var label: Label
-                var body: some View { EmptyView() }
-
-                init(label: Label) {
-                    self.label = label
-                }
-            }
-
-            extension Badge where Label == Text {
-                init(label: LocalizedStringKey) {
-                    self.label = Text(label)
-                }
-
-                @_disfavoredOverload
-                init(label: String) {
-                    self.label = Text(label)
-                }
-            }
-            """,
-            macros: testMacros
-        )
-    }
-
-    func testSingleSlotTextOptionalAndString() {
-        let testMacros: [String: Macro.Type] = ["Slotted": SlotMacro.self, "Slot": SlotPropertyMacro.self]
-        assertMacroExpansion(
-            """
-            @Slotted
-            struct Badge<Label: View>: View {
-                @Slot(.text, .string, .optional) var label: Label
-                var body: some View { EmptyView() }
-            }
-            """,
-            expandedSource: """
-            struct Badge<Label: View>: View {
-                var label: Label
-                var body: some View { EmptyView() }
-
-                init(label: Label) {
-                    self.label = label
+                init(@ViewBuilder label: () -> Label) {
+                    self.label = label()
                 }
             }
 
@@ -165,9 +104,9 @@ final class SlotTests: XCTestCase {
                 }
             }
 
-            extension Badge where Label == EmptyView {
+            extension Badge where Label == Never {
                 init() {
-                    self.label = EmptyView()
+                    self.label = nil
                 }
             }
             """,
@@ -184,40 +123,52 @@ final class SlotTests: XCTestCase {
             @Slotted
             struct Card<Title: View, Actions: View>: View {
                 @Slot(.text) var title: Title
-                @Slot(.optional) var actions: Actions
+                var actions: Actions?
                 var body: some View { EmptyView() }
             }
             """,
             expandedSource: """
             struct Card<Title: View, Actions: View>: View {
                 var title: Title
-                var actions: Actions
+                var actions: Actions?
                 var body: some View { EmptyView() }
 
-                init(title: Title, actions: Actions) {
-                    self.title = title
-                    self.actions = actions
+                init(@ViewBuilder title: () -> Title, @ViewBuilder actions: () -> Actions) {
+                    self.title = title()
+                    self.actions = actions()
                 }
             }
 
-            extension Card where Actions == EmptyView {
-                init(title: Title) {
-                    self.title = title
-                    self.actions = EmptyView()
+            extension Card where Actions == Never {
+                init(@ViewBuilder title: () -> Title) {
+                    self.title = title()
+                    self.actions = nil
                 }
             }
 
             extension Card where Title == Text {
-                init(title: LocalizedStringKey, actions: Actions) {
+                init(title: LocalizedStringKey, @ViewBuilder actions: () -> Actions) {
                     self.title = Text(title)
-                    self.actions = actions
+                    self.actions = actions()
+                }
+
+                @_disfavoredOverload
+                init(title: String, @ViewBuilder actions: () -> Actions) {
+                    self.title = Text(title)
+                    self.actions = actions()
                 }
             }
 
-            extension Card where Title == Text, Actions == EmptyView {
+            extension Card where Title == Text, Actions == Never {
                 init(title: LocalizedStringKey) {
                     self.title = Text(title)
-                    self.actions = EmptyView()
+                    self.actions = nil
+                }
+
+                @_disfavoredOverload
+                init(title: String) {
+                    self.title = Text(title)
+                    self.actions = nil
                 }
             }
             """,
@@ -225,59 +176,59 @@ final class SlotTests: XCTestCase {
         )
     }
 
-    func testTwoSlotsWithString() {
+    func testTwoSlotsText() {
         let testMacros: [String: Macro.Type] = ["Slotted": SlotMacro.self, "Slot": SlotPropertyMacro.self]
         assertMacroExpansion(
             """
             @Slotted
             struct Card<Title: View, Footer: View>: View {
-                @Slot(.text, .string) var title: Title
-                @Slot(.optional) var footer: Footer
+                @Slot(.text) var title: Title
+                var footer: Footer?
                 var body: some View { EmptyView() }
             }
             """,
             expandedSource: """
             struct Card<Title: View, Footer: View>: View {
                 var title: Title
-                var footer: Footer
+                var footer: Footer?
                 var body: some View { EmptyView() }
 
-                init(title: Title, footer: Footer) {
-                    self.title = title
-                    self.footer = footer
+                init(@ViewBuilder title: () -> Title, @ViewBuilder footer: () -> Footer) {
+                    self.title = title()
+                    self.footer = footer()
                 }
             }
 
-            extension Card where Footer == EmptyView {
-                init(title: Title) {
-                    self.title = title
-                    self.footer = EmptyView()
+            extension Card where Footer == Never {
+                init(@ViewBuilder title: () -> Title) {
+                    self.title = title()
+                    self.footer = nil
                 }
             }
 
             extension Card where Title == Text {
-                init(title: LocalizedStringKey, footer: Footer) {
+                init(title: LocalizedStringKey, @ViewBuilder footer: () -> Footer) {
                     self.title = Text(title)
-                    self.footer = footer
+                    self.footer = footer()
                 }
 
                 @_disfavoredOverload
-                init(title: String, footer: Footer) {
+                init(title: String, @ViewBuilder footer: () -> Footer) {
                     self.title = Text(title)
-                    self.footer = footer
+                    self.footer = footer()
                 }
             }
 
-            extension Card where Title == Text, Footer == EmptyView {
+            extension Card where Title == Text, Footer == Never {
                 init(title: LocalizedStringKey) {
                     self.title = Text(title)
-                    self.footer = EmptyView()
+                    self.footer = nil
                 }
 
                 @_disfavoredOverload
                 init(title: String) {
                     self.title = Text(title)
-                    self.footer = EmptyView()
+                    self.footer = nil
                 }
             }
             """,
@@ -295,7 +246,7 @@ final class SlotTests: XCTestCase {
             struct Card<Title: View, Subtitle: View, Actions: View>: View {
                 @Slot(.text) var title: Title
                 @Slot(.text) var subtitle: Subtitle
-                @Slot(.optional) var actions: Actions
+                var actions: Actions?
                 var body: some View { EmptyView() }
             }
             """,
@@ -303,69 +254,139 @@ final class SlotTests: XCTestCase {
             struct Card<Title: View, Subtitle: View, Actions: View>: View {
                 var title: Title
                 var subtitle: Subtitle
-                var actions: Actions
+                var actions: Actions?
                 var body: some View { EmptyView() }
 
-                init(title: Title, subtitle: Subtitle, actions: Actions) {
-                    self.title = title
-                    self.subtitle = subtitle
-                    self.actions = actions
+                init(@ViewBuilder title: () -> Title, @ViewBuilder subtitle: () -> Subtitle, @ViewBuilder actions: () -> Actions) {
+                    self.title = title()
+                    self.subtitle = subtitle()
+                    self.actions = actions()
                 }
             }
 
-            extension Card where Actions == EmptyView {
-                init(title: Title, subtitle: Subtitle) {
-                    self.title = title
-                    self.subtitle = subtitle
-                    self.actions = EmptyView()
+            extension Card where Actions == Never {
+                init(@ViewBuilder title: () -> Title, @ViewBuilder subtitle: () -> Subtitle) {
+                    self.title = title()
+                    self.subtitle = subtitle()
+                    self.actions = nil
                 }
             }
 
             extension Card where Subtitle == Text {
-                init(title: Title, subtitle: LocalizedStringKey, actions: Actions) {
-                    self.title = title
+                init(@ViewBuilder title: () -> Title, subtitle: LocalizedStringKey, @ViewBuilder actions: () -> Actions) {
+                    self.title = title()
                     self.subtitle = Text(subtitle)
-                    self.actions = actions
+                    self.actions = actions()
+                }
+
+                @_disfavoredOverload
+                init(@ViewBuilder title: () -> Title, subtitle: String, @ViewBuilder actions: () -> Actions) {
+                    self.title = title()
+                    self.subtitle = Text(subtitle)
+                    self.actions = actions()
                 }
             }
 
-            extension Card where Subtitle == Text, Actions == EmptyView {
-                init(title: Title, subtitle: LocalizedStringKey) {
-                    self.title = title
+            extension Card where Subtitle == Text, Actions == Never {
+                init(@ViewBuilder title: () -> Title, subtitle: LocalizedStringKey) {
+                    self.title = title()
                     self.subtitle = Text(subtitle)
-                    self.actions = EmptyView()
+                    self.actions = nil
+                }
+
+                @_disfavoredOverload
+                init(@ViewBuilder title: () -> Title, subtitle: String) {
+                    self.title = title()
+                    self.subtitle = Text(subtitle)
+                    self.actions = nil
                 }
             }
 
             extension Card where Title == Text {
-                init(title: LocalizedStringKey, subtitle: Subtitle, actions: Actions) {
+                init(title: LocalizedStringKey, @ViewBuilder subtitle: () -> Subtitle, @ViewBuilder actions: () -> Actions) {
                     self.title = Text(title)
-                    self.subtitle = subtitle
-                    self.actions = actions
+                    self.subtitle = subtitle()
+                    self.actions = actions()
+                }
+
+                @_disfavoredOverload
+                init(title: String, @ViewBuilder subtitle: () -> Subtitle, @ViewBuilder actions: () -> Actions) {
+                    self.title = Text(title)
+                    self.subtitle = subtitle()
+                    self.actions = actions()
                 }
             }
 
-            extension Card where Title == Text, Actions == EmptyView {
-                init(title: LocalizedStringKey, subtitle: Subtitle) {
+            extension Card where Title == Text, Actions == Never {
+                init(title: LocalizedStringKey, @ViewBuilder subtitle: () -> Subtitle) {
                     self.title = Text(title)
-                    self.subtitle = subtitle
-                    self.actions = EmptyView()
+                    self.subtitle = subtitle()
+                    self.actions = nil
+                }
+
+                @_disfavoredOverload
+                init(title: String, @ViewBuilder subtitle: () -> Subtitle) {
+                    self.title = Text(title)
+                    self.subtitle = subtitle()
+                    self.actions = nil
                 }
             }
 
             extension Card where Title == Text, Subtitle == Text {
-                init(title: LocalizedStringKey, subtitle: LocalizedStringKey, actions: Actions) {
+                init(title: LocalizedStringKey, subtitle: LocalizedStringKey, @ViewBuilder actions: () -> Actions) {
                     self.title = Text(title)
                     self.subtitle = Text(subtitle)
-                    self.actions = actions
+                    self.actions = actions()
+                }
+
+                @_disfavoredOverload
+                init(title: LocalizedStringKey, subtitle: String, @ViewBuilder actions: () -> Actions) {
+                    self.title = Text(title)
+                    self.subtitle = Text(subtitle)
+                    self.actions = actions()
+                }
+
+                @_disfavoredOverload
+                init(title: String, subtitle: LocalizedStringKey, @ViewBuilder actions: () -> Actions) {
+                    self.title = Text(title)
+                    self.subtitle = Text(subtitle)
+                    self.actions = actions()
+                }
+
+                @_disfavoredOverload
+                init(title: String, subtitle: String, @ViewBuilder actions: () -> Actions) {
+                    self.title = Text(title)
+                    self.subtitle = Text(subtitle)
+                    self.actions = actions()
                 }
             }
 
-            extension Card where Title == Text, Subtitle == Text, Actions == EmptyView {
+            extension Card where Title == Text, Subtitle == Text, Actions == Never {
                 init(title: LocalizedStringKey, subtitle: LocalizedStringKey) {
                     self.title = Text(title)
                     self.subtitle = Text(subtitle)
-                    self.actions = EmptyView()
+                    self.actions = nil
+                }
+
+                @_disfavoredOverload
+                init(title: LocalizedStringKey, subtitle: String) {
+                    self.title = Text(title)
+                    self.subtitle = Text(subtitle)
+                    self.actions = nil
+                }
+
+                @_disfavoredOverload
+                init(title: String, subtitle: LocalizedStringKey) {
+                    self.title = Text(title)
+                    self.subtitle = Text(subtitle)
+                    self.actions = nil
+                }
+
+                @_disfavoredOverload
+                init(title: String, subtitle: String) {
+                    self.title = Text(title)
+                    self.subtitle = Text(subtitle)
+                    self.actions = nil
                 }
             }
             """,
@@ -382,166 +403,327 @@ final class SlotTests: XCTestCase {
             @Slotted
             struct Card<Title: View, Subtitle: View, Body: View, Footer: View>: View {
                 @Slot(.text) var title: Title
-                @Slot(.optional) var subtitle: Subtitle
+                var subtitle: Subtitle?
                 @Slot(.text) var body_: Body
-                @Slot(.optional) var footer: Footer
+                var footer: Footer?
                 var body: some View { EmptyView() }
             }
             """,
             expandedSource: """
             struct Card<Title: View, Subtitle: View, Body: View, Footer: View>: View {
                 var title: Title
-                var subtitle: Subtitle
+                var subtitle: Subtitle?
                 var body_: Body
-                var footer: Footer
+                var footer: Footer?
                 var body: some View { EmptyView() }
 
-                init(title: Title, subtitle: Subtitle, body_: Body, footer: Footer) {
-                    self.title = title
-                    self.subtitle = subtitle
-                    self.body_ = body_
-                    self.footer = footer
+                init(@ViewBuilder title: () -> Title, @ViewBuilder subtitle: () -> Subtitle, @ViewBuilder body_: () -> Body, @ViewBuilder footer: () -> Footer) {
+                    self.title = title()
+                    self.subtitle = subtitle()
+                    self.body_ = body_()
+                    self.footer = footer()
                 }
             }
 
-            extension Card where Footer == EmptyView {
-                init(title: Title, subtitle: Subtitle, body_: Body) {
-                    self.title = title
-                    self.subtitle = subtitle
-                    self.body_ = body_
-                    self.footer = EmptyView()
+            extension Card where Footer == Never {
+                init(@ViewBuilder title: () -> Title, @ViewBuilder subtitle: () -> Subtitle, @ViewBuilder body_: () -> Body) {
+                    self.title = title()
+                    self.subtitle = subtitle()
+                    self.body_ = body_()
+                    self.footer = nil
                 }
             }
 
             extension Card where Body == Text {
-                init(title: Title, subtitle: Subtitle, body_: LocalizedStringKey, footer: Footer) {
-                    self.title = title
-                    self.subtitle = subtitle
+                init(@ViewBuilder title: () -> Title, @ViewBuilder subtitle: () -> Subtitle, body_: LocalizedStringKey, @ViewBuilder footer: () -> Footer) {
+                    self.title = title()
+                    self.subtitle = subtitle()
                     self.body_ = Text(body_)
-                    self.footer = footer
+                    self.footer = footer()
                 }
-            }
 
-            extension Card where Body == Text, Footer == EmptyView {
-                init(title: Title, subtitle: Subtitle, body_: LocalizedStringKey) {
-                    self.title = title
-                    self.subtitle = subtitle
+                @_disfavoredOverload
+                init(@ViewBuilder title: () -> Title, @ViewBuilder subtitle: () -> Subtitle, body_: String, @ViewBuilder footer: () -> Footer) {
+                    self.title = title()
+                    self.subtitle = subtitle()
                     self.body_ = Text(body_)
-                    self.footer = EmptyView()
+                    self.footer = footer()
                 }
             }
 
-            extension Card where Subtitle == EmptyView {
-                init(title: Title, body_: Body, footer: Footer) {
-                    self.title = title
-                    self.subtitle = EmptyView()
-                    self.body_ = body_
-                    self.footer = footer
-                }
-            }
-
-            extension Card where Subtitle == EmptyView, Footer == EmptyView {
-                init(title: Title, body_: Body) {
-                    self.title = title
-                    self.subtitle = EmptyView()
-                    self.body_ = body_
-                    self.footer = EmptyView()
-                }
-            }
-
-            extension Card where Subtitle == EmptyView, Body == Text {
-                init(title: Title, body_: LocalizedStringKey, footer: Footer) {
-                    self.title = title
-                    self.subtitle = EmptyView()
+            extension Card where Body == Text, Footer == Never {
+                init(@ViewBuilder title: () -> Title, @ViewBuilder subtitle: () -> Subtitle, body_: LocalizedStringKey) {
+                    self.title = title()
+                    self.subtitle = subtitle()
                     self.body_ = Text(body_)
-                    self.footer = footer
+                    self.footer = nil
+                }
+
+                @_disfavoredOverload
+                init(@ViewBuilder title: () -> Title, @ViewBuilder subtitle: () -> Subtitle, body_: String) {
+                    self.title = title()
+                    self.subtitle = subtitle()
+                    self.body_ = Text(body_)
+                    self.footer = nil
                 }
             }
 
-            extension Card where Subtitle == EmptyView, Body == Text, Footer == EmptyView {
-                init(title: Title, body_: LocalizedStringKey) {
-                    self.title = title
-                    self.subtitle = EmptyView()
+            extension Card where Subtitle == Never {
+                init(@ViewBuilder title: () -> Title, @ViewBuilder body_: () -> Body, @ViewBuilder footer: () -> Footer) {
+                    self.title = title()
+                    self.subtitle = nil
+                    self.body_ = body_()
+                    self.footer = footer()
+                }
+            }
+
+            extension Card where Subtitle == Never, Footer == Never {
+                init(@ViewBuilder title: () -> Title, @ViewBuilder body_: () -> Body) {
+                    self.title = title()
+                    self.subtitle = nil
+                    self.body_ = body_()
+                    self.footer = nil
+                }
+            }
+
+            extension Card where Subtitle == Never, Body == Text {
+                init(@ViewBuilder title: () -> Title, body_: LocalizedStringKey, @ViewBuilder footer: () -> Footer) {
+                    self.title = title()
+                    self.subtitle = nil
                     self.body_ = Text(body_)
-                    self.footer = EmptyView()
+                    self.footer = footer()
+                }
+
+                @_disfavoredOverload
+                init(@ViewBuilder title: () -> Title, body_: String, @ViewBuilder footer: () -> Footer) {
+                    self.title = title()
+                    self.subtitle = nil
+                    self.body_ = Text(body_)
+                    self.footer = footer()
+                }
+            }
+
+            extension Card where Subtitle == Never, Body == Text, Footer == Never {
+                init(@ViewBuilder title: () -> Title, body_: LocalizedStringKey) {
+                    self.title = title()
+                    self.subtitle = nil
+                    self.body_ = Text(body_)
+                    self.footer = nil
+                }
+
+                @_disfavoredOverload
+                init(@ViewBuilder title: () -> Title, body_: String) {
+                    self.title = title()
+                    self.subtitle = nil
+                    self.body_ = Text(body_)
+                    self.footer = nil
                 }
             }
 
             extension Card where Title == Text {
-                init(title: LocalizedStringKey, subtitle: Subtitle, body_: Body, footer: Footer) {
+                init(title: LocalizedStringKey, @ViewBuilder subtitle: () -> Subtitle, @ViewBuilder body_: () -> Body, @ViewBuilder footer: () -> Footer) {
                     self.title = Text(title)
-                    self.subtitle = subtitle
-                    self.body_ = body_
-                    self.footer = footer
+                    self.subtitle = subtitle()
+                    self.body_ = body_()
+                    self.footer = footer()
+                }
+
+                @_disfavoredOverload
+                init(title: String, @ViewBuilder subtitle: () -> Subtitle, @ViewBuilder body_: () -> Body, @ViewBuilder footer: () -> Footer) {
+                    self.title = Text(title)
+                    self.subtitle = subtitle()
+                    self.body_ = body_()
+                    self.footer = footer()
                 }
             }
 
-            extension Card where Title == Text, Footer == EmptyView {
-                init(title: LocalizedStringKey, subtitle: Subtitle, body_: Body) {
+            extension Card where Title == Text, Footer == Never {
+                init(title: LocalizedStringKey, @ViewBuilder subtitle: () -> Subtitle, @ViewBuilder body_: () -> Body) {
                     self.title = Text(title)
-                    self.subtitle = subtitle
-                    self.body_ = body_
-                    self.footer = EmptyView()
+                    self.subtitle = subtitle()
+                    self.body_ = body_()
+                    self.footer = nil
+                }
+
+                @_disfavoredOverload
+                init(title: String, @ViewBuilder subtitle: () -> Subtitle, @ViewBuilder body_: () -> Body) {
+                    self.title = Text(title)
+                    self.subtitle = subtitle()
+                    self.body_ = body_()
+                    self.footer = nil
                 }
             }
 
             extension Card where Title == Text, Body == Text {
-                init(title: LocalizedStringKey, subtitle: Subtitle, body_: LocalizedStringKey, footer: Footer) {
+                init(title: LocalizedStringKey, @ViewBuilder subtitle: () -> Subtitle, body_: LocalizedStringKey, @ViewBuilder footer: () -> Footer) {
                     self.title = Text(title)
-                    self.subtitle = subtitle
+                    self.subtitle = subtitle()
                     self.body_ = Text(body_)
-                    self.footer = footer
+                    self.footer = footer()
                 }
-            }
 
-            extension Card where Title == Text, Body == Text, Footer == EmptyView {
-                init(title: LocalizedStringKey, subtitle: Subtitle, body_: LocalizedStringKey) {
+                @_disfavoredOverload
+                init(title: LocalizedStringKey, @ViewBuilder subtitle: () -> Subtitle, body_: String, @ViewBuilder footer: () -> Footer) {
                     self.title = Text(title)
-                    self.subtitle = subtitle
+                    self.subtitle = subtitle()
                     self.body_ = Text(body_)
-                    self.footer = EmptyView()
+                    self.footer = footer()
                 }
-            }
 
-            extension Card where Title == Text, Subtitle == EmptyView {
-                init(title: LocalizedStringKey, body_: Body, footer: Footer) {
+                @_disfavoredOverload
+                init(title: String, @ViewBuilder subtitle: () -> Subtitle, body_: LocalizedStringKey, @ViewBuilder footer: () -> Footer) {
                     self.title = Text(title)
-                    self.subtitle = EmptyView()
-                    self.body_ = body_
-                    self.footer = footer
-                }
-            }
-
-            extension Card where Title == Text, Subtitle == EmptyView, Footer == EmptyView {
-                init(title: LocalizedStringKey, body_: Body) {
-                    self.title = Text(title)
-                    self.subtitle = EmptyView()
-                    self.body_ = body_
-                    self.footer = EmptyView()
-                }
-            }
-
-            extension Card where Title == Text, Subtitle == EmptyView, Body == Text {
-                init(title: LocalizedStringKey, body_: LocalizedStringKey, footer: Footer) {
-                    self.title = Text(title)
-                    self.subtitle = EmptyView()
+                    self.subtitle = subtitle()
                     self.body_ = Text(body_)
-                    self.footer = footer
+                    self.footer = footer()
+                }
+
+                @_disfavoredOverload
+                init(title: String, @ViewBuilder subtitle: () -> Subtitle, body_: String, @ViewBuilder footer: () -> Footer) {
+                    self.title = Text(title)
+                    self.subtitle = subtitle()
+                    self.body_ = Text(body_)
+                    self.footer = footer()
                 }
             }
 
-            extension Card where Title == Text, Subtitle == EmptyView, Body == Text, Footer == EmptyView {
+            extension Card where Title == Text, Body == Text, Footer == Never {
+                init(title: LocalizedStringKey, @ViewBuilder subtitle: () -> Subtitle, body_: LocalizedStringKey) {
+                    self.title = Text(title)
+                    self.subtitle = subtitle()
+                    self.body_ = Text(body_)
+                    self.footer = nil
+                }
+
+                @_disfavoredOverload
+                init(title: LocalizedStringKey, @ViewBuilder subtitle: () -> Subtitle, body_: String) {
+                    self.title = Text(title)
+                    self.subtitle = subtitle()
+                    self.body_ = Text(body_)
+                    self.footer = nil
+                }
+
+                @_disfavoredOverload
+                init(title: String, @ViewBuilder subtitle: () -> Subtitle, body_: LocalizedStringKey) {
+                    self.title = Text(title)
+                    self.subtitle = subtitle()
+                    self.body_ = Text(body_)
+                    self.footer = nil
+                }
+
+                @_disfavoredOverload
+                init(title: String, @ViewBuilder subtitle: () -> Subtitle, body_: String) {
+                    self.title = Text(title)
+                    self.subtitle = subtitle()
+                    self.body_ = Text(body_)
+                    self.footer = nil
+                }
+            }
+
+            extension Card where Title == Text, Subtitle == Never {
+                init(title: LocalizedStringKey, @ViewBuilder body_: () -> Body, @ViewBuilder footer: () -> Footer) {
+                    self.title = Text(title)
+                    self.subtitle = nil
+                    self.body_ = body_()
+                    self.footer = footer()
+                }
+
+                @_disfavoredOverload
+                init(title: String, @ViewBuilder body_: () -> Body, @ViewBuilder footer: () -> Footer) {
+                    self.title = Text(title)
+                    self.subtitle = nil
+                    self.body_ = body_()
+                    self.footer = footer()
+                }
+            }
+
+            extension Card where Title == Text, Subtitle == Never, Footer == Never {
+                init(title: LocalizedStringKey, @ViewBuilder body_: () -> Body) {
+                    self.title = Text(title)
+                    self.subtitle = nil
+                    self.body_ = body_()
+                    self.footer = nil
+                }
+
+                @_disfavoredOverload
+                init(title: String, @ViewBuilder body_: () -> Body) {
+                    self.title = Text(title)
+                    self.subtitle = nil
+                    self.body_ = body_()
+                    self.footer = nil
+                }
+            }
+
+            extension Card where Title == Text, Subtitle == Never, Body == Text {
+                init(title: LocalizedStringKey, body_: LocalizedStringKey, @ViewBuilder footer: () -> Footer) {
+                    self.title = Text(title)
+                    self.subtitle = nil
+                    self.body_ = Text(body_)
+                    self.footer = footer()
+                }
+
+                @_disfavoredOverload
+                init(title: LocalizedStringKey, body_: String, @ViewBuilder footer: () -> Footer) {
+                    self.title = Text(title)
+                    self.subtitle = nil
+                    self.body_ = Text(body_)
+                    self.footer = footer()
+                }
+
+                @_disfavoredOverload
+                init(title: String, body_: LocalizedStringKey, @ViewBuilder footer: () -> Footer) {
+                    self.title = Text(title)
+                    self.subtitle = nil
+                    self.body_ = Text(body_)
+                    self.footer = footer()
+                }
+
+                @_disfavoredOverload
+                init(title: String, body_: String, @ViewBuilder footer: () -> Footer) {
+                    self.title = Text(title)
+                    self.subtitle = nil
+                    self.body_ = Text(body_)
+                    self.footer = footer()
+                }
+            }
+
+            extension Card where Title == Text, Subtitle == Never, Body == Text, Footer == Never {
                 init(title: LocalizedStringKey, body_: LocalizedStringKey) {
                     self.title = Text(title)
-                    self.subtitle = EmptyView()
+                    self.subtitle = nil
                     self.body_ = Text(body_)
-                    self.footer = EmptyView()
+                    self.footer = nil
+                }
+
+                @_disfavoredOverload
+                init(title: LocalizedStringKey, body_: String) {
+                    self.title = Text(title)
+                    self.subtitle = nil
+                    self.body_ = Text(body_)
+                    self.footer = nil
+                }
+
+                @_disfavoredOverload
+                init(title: String, body_: LocalizedStringKey) {
+                    self.title = Text(title)
+                    self.subtitle = nil
+                    self.body_ = Text(body_)
+                    self.footer = nil
+                }
+
+                @_disfavoredOverload
+                init(title: String, body_: String) {
+                    self.title = Text(title)
+                    self.subtitle = nil
+                    self.body_ = Text(body_)
+                    self.footer = nil
                 }
             }
             """,
             macros: testMacros
         )
     }
+
     // Plain stored properties WITH a default value are omitted from all generated inits.
     func testPlainPropertyWithDefault() {
         let testMacros: [String: Macro.Type] = ["Slotted": SlotMacro.self, "Slot": SlotPropertyMacro.self]
@@ -560,8 +742,8 @@ final class SlotTests: XCTestCase {
                 var label: Label
                 var body: some View { EmptyView() }
 
-                init(label: Label) {
-                    self.label = label
+                init(@ViewBuilder label: () -> Label) {
+                    self.label = label()
                 }
             }
 
@@ -569,11 +751,18 @@ final class SlotTests: XCTestCase {
                 init(label: LocalizedStringKey) {
                     self.label = Text(label)
                 }
+
+                @_disfavoredOverload
+                init(label: String) {
+                    self.label = Text(label)
+                }
             }
             """,
             macros: testMacros
         )
     }
+
+    // MARK: - Diagnostic tests
 
     // Plain stored properties WITHOUT a default value must appear as labeled
     // parameters in every generated init — base and all constrained extensions.
@@ -585,7 +774,7 @@ final class SlotTests: XCTestCase {
             struct Banner<Icon: View, Label: View>: View {
                 var isEnabled: Bool
                 var badge: Int = 0
-                @Slot(.optional) var icon: Icon
+                var icon: Icon?
                 @Slot(.text) var label: Label
                 var body: some View { EmptyView() }
             }
@@ -594,37 +783,51 @@ final class SlotTests: XCTestCase {
             struct Banner<Icon: View, Label: View>: View {
                 var isEnabled: Bool
                 var badge: Int = 0
-                var icon: Icon
+                var icon: Icon?
                 var label: Label
                 var body: some View { EmptyView() }
 
-                init(isEnabled: Bool, icon: Icon, label: Label) {
+                init(isEnabled: Bool, @ViewBuilder icon: () -> Icon, @ViewBuilder label: () -> Label) {
                     self.isEnabled = isEnabled
-                    self.icon = icon
-                    self.label = label
+                    self.icon = icon()
+                    self.label = label()
                 }
             }
 
             extension Banner where Label == Text {
-                init(isEnabled: Bool, icon: Icon, label: LocalizedStringKey) {
+                init(isEnabled: Bool, @ViewBuilder icon: () -> Icon, label: LocalizedStringKey) {
                     self.isEnabled = isEnabled
-                    self.icon = icon
+                    self.icon = icon()
+                    self.label = Text(label)
+                }
+
+                @_disfavoredOverload
+                init(isEnabled: Bool, @ViewBuilder icon: () -> Icon, label: String) {
+                    self.isEnabled = isEnabled
+                    self.icon = icon()
                     self.label = Text(label)
                 }
             }
 
-            extension Banner where Icon == EmptyView {
-                init(isEnabled: Bool, label: Label) {
+            extension Banner where Icon == Never {
+                init(isEnabled: Bool, @ViewBuilder label: () -> Label) {
                     self.isEnabled = isEnabled
-                    self.icon = EmptyView()
-                    self.label = label
+                    self.icon = nil
+                    self.label = label()
                 }
             }
 
-            extension Banner where Icon == EmptyView, Label == Text {
+            extension Banner where Icon == Never, Label == Text {
                 init(isEnabled: Bool, label: LocalizedStringKey) {
                     self.isEnabled = isEnabled
-                    self.icon = EmptyView()
+                    self.icon = nil
+                    self.label = Text(label)
+                }
+
+                @_disfavoredOverload
+                init(isEnabled: Bool, label: String) {
+                    self.isEnabled = isEnabled
+                    self.icon = nil
                     self.label = Text(label)
                 }
             }

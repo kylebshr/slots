@@ -13,10 +13,10 @@ A two-slot component with one optional slot and one text-convenience slot alread
 ```swift
 // Just two slots. Already four inits to write and maintain.
 struct Card<Title: View, Actions: View>: View {
-    init(title: Title, actions: Actions) { ... }
-    init(title: LocalizedStringKey, actions: Actions) { ... }
-    init(title: Title) where Actions == EmptyView { ... }
-    init(title: LocalizedStringKey) where Actions == EmptyView { ... }
+    init(@ViewBuilder title: () -> Title, @ViewBuilder actions: () -> Actions) { ... }
+    init(title: LocalizedStringKey, @ViewBuilder actions: () -> Actions) { ... }
+    init(@ViewBuilder title: () -> Title) where Actions == Never { ... }
+    init(title: LocalizedStringKey) where Actions == Never { ... }
 }
 ```
 
@@ -29,8 +29,10 @@ import Slot
 
 @Slotted
 struct Card<Title: View, Actions: View>: View {
-    @Slot(.text)     var title: Title
-    @Slot(.optional) var actions: Actions
+    @Slot(.text)
+    var title: Title
+
+    var actions: Actions?
 
     var body: some View { ... }
 }
@@ -39,47 +41,59 @@ struct Card<Title: View, Actions: View>: View {
 That's it. The macro expands to:
 
 ```swift
-// On the struct — caller provides any View
-init(title: Title, actions: Actions)
+// On the struct — caller provides any View via @ViewBuilder closure
+init(@ViewBuilder title: () -> Title, @ViewBuilder actions: () -> Actions)
 
 // extension Card where Title == Text
-init(title: LocalizedStringKey, actions: Actions)
+init(title: LocalizedStringKey, @ViewBuilder actions: () -> Actions)
+@_disfavoredOverload
+init(title: String, @ViewBuilder actions: () -> Actions)
 
-// extension Card where Actions == EmptyView
-init(title: Title)
+// extension Card where Actions == Never
+init(@ViewBuilder title: () -> Title)
 
-// extension Card where Title == Text, Actions == EmptyView
+// extension Card where Title == Text, Actions == Never
 init(title: LocalizedStringKey)
+@_disfavoredOverload
+init(title: String)
 ```
 
 Call sites stay clean and exactly what you'd expect:
 
 ```swift
-Card(title: "Hello", actions: likeButton)   // LocalizedStringKey + custom view
-Card(title: "Hello")                         // LocalizedStringKey, no actions
-Card(title: headerView, actions: likeButton) // custom view + custom view
-Card(title: headerView)                      // custom view, no actions
+Card(title: "Hello") { likeButton }           // LocalizedStringKey + custom view
+Card(title: "Hello")                           // LocalizedStringKey, no actions
+Card { headerView } actions: { likeButton }   // custom view + custom view
+Card { headerView }                            // custom view, no actions
 ```
 
 ---
 
 ## Slot options
 
-Annotate each slot property with `@Slot` and one or more options:
+Each `@Slot`-annotated property accepts one or more options:
 
 | Option | Effect |
 |---|---|
-| `.text` | Adds an `init` variant where this slot accepts `LocalizedStringKey`, stored as `Text(...)` |
-| `.string` | Adds a `@_disfavoredOverload init` variant accepting `String`, also stored as `Text(...)`. Pair with `.text` so string literals prefer the localized version. |
-| `.optional` | Adds an `init` variant that omits this parameter entirely, storing `EmptyView()` |
+| `.text` | Adds `init` variants where this slot accepts `LocalizedStringKey` (preferred) or `String` (disfavored), both stored as `Text(...)` |
 
-### Example with all three options
+### Optional slots
+
+Declare a slot as optional by using `?` in the property type — no `@Slot` annotation required:
+
+```swift
+var icon: Icon?
+```
+
+This automatically generates an init variant that omits the parameter entirely, storing `nil`. The absent slot type is constrained to `Never`.
+
+### Example
 
 ```swift
 @Slotted
 struct Badge<Icon: View, Label: View>: View {
-    @Slot(.optional)            var icon: Icon
-    @Slot(.text, .string)       var label: Label
+    var icon: Icon?
+    @Slot(.text) var label: Label
 
     var body: some View { ... }
 }
@@ -89,29 +103,29 @@ Generated inits:
 
 ```swift
 // Base
-init(icon: Icon, label: Label)
+init(@ViewBuilder icon: () -> Icon, @ViewBuilder label: () -> Label)
 
 // extension Badge where Label == Text
-init(icon: Icon, label: LocalizedStringKey)           // preferred
+init(@ViewBuilder icon: () -> Icon, label: LocalizedStringKey)           // preferred
 @_disfavoredOverload
-init(icon: Icon, label: String)                       // disfavored
+init(@ViewBuilder icon: () -> Icon, label: String)                       // disfavored
 
-// extension Badge where Icon == EmptyView
-init(label: Label)
+// extension Badge where Icon == Never
+init(@ViewBuilder label: () -> Label)
 
-// extension Badge where Icon == EmptyView, Label == Text
-init(label: LocalizedStringKey)                       // preferred
+// extension Badge where Icon == Never, Label == Text
+init(label: LocalizedStringKey)                                          // preferred
 @_disfavoredOverload
-init(label: String)                                   // disfavored
+init(label: String)                                                      // disfavored
 ```
 
 Call sites:
 
 ```swift
-Badge(label: "New")                                   // LocalizedStringKey, no icon
-Badge(label: "New" as String)                         // explicit String, no icon
-Badge(icon: Image(systemName: "star"), label: "New")  // icon + LocalizedStringKey
-Badge(icon: starView, label: customLabel)             // fully generic
+Badge(label: "New")                                    // LocalizedStringKey, no icon
+Badge(label: "New" as String)                          // explicit String, no icon
+Badge(icon: { Image(systemName: "star") }, label: "New")  // icon + LocalizedStringKey
+Badge { starView } label: { customLabel }              // fully generic
 ```
 
 ---
@@ -131,9 +145,11 @@ struct Row<Content: View>: View {
 }
 
 // Generated:
-init(isSelected: Bool, content: Content)
+init(isSelected: Bool, @ViewBuilder content: () -> Content)
 // extension Row where Content == Text
 init(isSelected: Bool, content: LocalizedStringKey)
+@_disfavoredOverload
+init(isSelected: Bool, content: String)
 ```
 
 ---
@@ -171,7 +187,7 @@ struct MyComponent<...>: View { ... }
 
 `@Slotted` is an `@attached(member)` + `@attached(extension)` macro.
 
-- The **member** expansion adds the base all-generic `init` directly on the struct.
-- The **extension** expansion generates one `extension MyComponent where ...` per unique combination of fixed slot types. Grouping by where-clause means `.text` and `.string` variants for the same slot share a single extension with two `init` overloads.
+- The **member** expansion adds the base all-generic `init` directly on the struct, with each slot parameter as a `@ViewBuilder` closure.
+- The **extension** expansion generates one `extension MyComponent where ...` per unique combination of fixed slot types. Grouping by where-clause means `LocalizedStringKey` and `String` variants for the same slot share a single extension with two `init` overloads.
 
-Because the concrete types are fixed by the where clause rather than cast inside the init, the entire thing is fully type-safe — `Chip<EmptyView, Text>` and `Chip<Image, Text>` are genuinely different types.
+Because the concrete types are fixed by the where clause rather than cast inside the init, the entire thing is fully type-safe — `Badge<Never, Text>` and `Badge<Image, Text>` are genuinely different types.
