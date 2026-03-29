@@ -1,4 +1,4 @@
-# Slot
+# Slots
 
 A Swift macro for building SwiftUI design system components with generic view slots — without the init explosion.
 
@@ -22,12 +22,12 @@ struct Card<Title: View, Actions: View>: View {
 
 ## The solution
 
-Annotate your component with `@Slotted` and mark each slot property with `@Slot`. The macro generates every init permutation for you — fully type-safe, using constrained extensions with no casts.
+Annotate your component with `@Slots`. Optional generic properties are automatically recognized as slots; use `@Slot` only when you need options like `.text`. The macro generates every init permutation for you — fully type-safe, using constrained extensions with no casts.
 
 ```swift
-import Slot
+import Slots
 
-@Slotted
+@Slots
 struct Card<Title: View, Actions: View>: View {
     @Slot(.text)
     var title: Title
@@ -71,7 +71,7 @@ Card { headerView }                            // custom view, no actions
 
 ## Slot options
 
-Each `@Slot`-annotated property accepts one or more options:
+The `@Slot` property annotation accepts one or more options:
 
 | Option | Effect |
 |---|---|
@@ -79,7 +79,7 @@ Each `@Slot`-annotated property accepts one or more options:
 
 ### Optional slots
 
-Declare a slot as optional by using `?` in the property type — no `@Slot` annotation required:
+Declare a slot as optional by using `?` in the property type — no `@Slot` annotation needed:
 
 ```swift
 var icon: Icon?
@@ -90,7 +90,7 @@ This automatically generates an init variant that omits the parameter entirely, 
 ### Example
 
 ```swift
-@Slotted
+@Slots
 struct Badge<Icon: View, Label: View>: View {
     var icon: Icon?
     @Slot(.text) var label: Label
@@ -135,7 +135,7 @@ Badge { starView } label: { customLabel }              // fully generic
 Non-slot stored properties are included as labeled parameters in every generated init, before the slot parameters. Properties with a default value carry that default in the generated signature:
 
 ```swift
-@Slotted
+@Slots
 struct Row<Content: View>: View {
     var isSelected: Bool          // no default → required in every init
     var badge: Int = 0            // has default → optional param in every init
@@ -160,11 +160,11 @@ Add the package in Xcode via **File → Add Package Dependencies**, or in `Packa
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/kylebshr/slot.git", from: "0.1.0"),
+    .package(url: "https://github.com/kylebshr/slots.git", from: "0.1.0"),
 ],
 targets: [
     .target(name: "MyTarget", dependencies: [
-        .product(name: "Slot", package: "slot"),
+        .product(name: "Slots", package: "slots"),
     ]),
 ]
 ```
@@ -172,10 +172,10 @@ targets: [
 Then import and use:
 
 ```swift
-import Slot
+import Slots
 import SwiftUI
 
-@Slotted
+@Slots
 struct MyComponent<...>: View { ... }
 ```
 
@@ -183,7 +183,7 @@ struct MyComponent<...>: View { ... }
 
 ## How it works
 
-`@Slotted` is an `@attached(member)` + `@attached(extension)` macro.
+`@Slots` is an `@attached(member)` + `@attached(extension)` macro. Non-required generic properties (those typed as optional generics like `Icon?`) are automatically treated as slots. The `@Slot` annotation is only needed to specify options.
 
 - The **member** expansion adds the base all-generic `init` directly on the struct, with each slot parameter as a `@ViewBuilder` closure.
 - The **extension** expansion generates one `extension MyComponent where ...` per unique combination of fixed slot types. Grouping by where-clause means `LocalizedStringKey` and `String` variants for the same slot share a single extension with two `init` overloads.

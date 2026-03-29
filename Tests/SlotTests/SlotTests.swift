@@ -9,10 +9,10 @@ final class SlotTests: XCTestCase {
     // MARK: - Single slot tests
 
     func testSingleSlotText() {
-        let testMacros: [String: Macro.Type] = ["Slotted": SlotMacro.self, "Slot": SlotPropertyMacro.self]
+        let testMacros: [String: Macro.Type] = ["Slots": SlotMacro.self, "Slot": SlotPropertyMacro.self]
         assertMacroExpansion(
             """
-            @Slotted
+            @Slots
             struct Badge<Label: View>: View {
                 @Slot(.text) var label: Label
                 var body: some View { EmptyView() }
@@ -43,11 +43,11 @@ final class SlotTests: XCTestCase {
         )
     }
 
-func testSingleSlotOptional() {
-        let testMacros: [String: Macro.Type] = ["Slotted": SlotMacro.self, "Slot": SlotPropertyMacro.self]
+    func testSingleSlotOptional() {
+        let testMacros: [String: Macro.Type] = ["Slots": SlotMacro.self, "Slot": SlotPropertyMacro.self]
         assertMacroExpansion(
             """
-            @Slotted
+            @Slots
             struct Row<Icon: View>: View {
                 var icon: Icon?
                 var body: some View { EmptyView() }
@@ -74,10 +74,10 @@ func testSingleSlotOptional() {
     }
 
     func testSingleSlotTextOptional() {
-        let testMacros: [String: Macro.Type] = ["Slotted": SlotMacro.self, "Slot": SlotPropertyMacro.self]
+        let testMacros: [String: Macro.Type] = ["Slots": SlotMacro.self, "Slot": SlotPropertyMacro.self]
         assertMacroExpansion(
             """
-            @Slotted
+            @Slots
             struct Badge<Label: View>: View {
                 @Slot(.text) var label: Label?
                 var body: some View { EmptyView() }
@@ -117,10 +117,10 @@ func testSingleSlotOptional() {
     // MARK: - Two slot tests
 
     func testTwoSlotsTextAndOptional() {
-        let testMacros: [String: Macro.Type] = ["Slotted": SlotMacro.self, "Slot": SlotPropertyMacro.self]
+        let testMacros: [String: Macro.Type] = ["Slots": SlotMacro.self, "Slot": SlotPropertyMacro.self]
         assertMacroExpansion(
             """
-            @Slotted
+            @Slots
             struct Card<Title: View, Actions: View>: View {
                 @Slot(.text) var title: Title
                 var actions: Actions?
@@ -177,10 +177,10 @@ func testSingleSlotOptional() {
     }
 
     func testTwoSlotsText() {
-        let testMacros: [String: Macro.Type] = ["Slotted": SlotMacro.self, "Slot": SlotPropertyMacro.self]
+        let testMacros: [String: Macro.Type] = ["Slots": SlotMacro.self, "Slot": SlotPropertyMacro.self]
         assertMacroExpansion(
             """
-            @Slotted
+            @Slots
             struct Card<Title: View, Footer: View>: View {
                 @Slot(.text) var title: Title
                 var footer: Footer?
@@ -239,10 +239,10 @@ func testSingleSlotOptional() {
     // MARK: - Three slot test
 
     func testThreeSlots() {
-        let testMacros: [String: Macro.Type] = ["Slotted": SlotMacro.self, "Slot": SlotPropertyMacro.self]
+        let testMacros: [String: Macro.Type] = ["Slots": SlotMacro.self, "Slot": SlotPropertyMacro.self]
         assertMacroExpansion(
             """
-            @Slotted
+            @Slots
             struct Card<Title: View, Subtitle: View, Actions: View>: View {
                 @Slot(.text) var title: Title
                 @Slot(.text) var subtitle: Subtitle
@@ -397,10 +397,10 @@ func testSingleSlotOptional() {
     // MARK: - Four slot test
 
     func testFourSlots() {
-        let testMacros: [String: Macro.Type] = ["Slotted": SlotMacro.self, "Slot": SlotPropertyMacro.self]
+        let testMacros: [String: Macro.Type] = ["Slots": SlotMacro.self, "Slot": SlotPropertyMacro.self]
         assertMacroExpansion(
             """
-            @Slotted
+            @Slots
             struct Card<Title: View, Subtitle: View, Body: View, Footer: View>: View {
                 @Slot(.text) var title: Title
                 var subtitle: Subtitle?
@@ -727,10 +727,10 @@ func testSingleSlotOptional() {
     // Plain stored properties WITH a default value appear in every generated init
     // with the default value, so callers can omit or override them.
     func testPlainPropertyWithDefault() {
-        let testMacros: [String: Macro.Type] = ["Slotted": SlotMacro.self, "Slot": SlotPropertyMacro.self]
+        let testMacros: [String: Macro.Type] = ["Slots": SlotMacro.self, "Slot": SlotPropertyMacro.self]
         assertMacroExpansion(
             """
-            @Slotted
+            @Slots
             struct Badge<Label: View>: View {
                 var count: Int = 0
                 @Slot(.text) var label: Label
@@ -771,10 +771,10 @@ func testSingleSlotOptional() {
     // Plain stored properties — required ones appear as required params, defaulted ones
     // appear with their default value so callers can omit or override them.
     func testPlainPropertyWithoutDefault() {
-        let testMacros: [String: Macro.Type] = ["Slotted": SlotMacro.self, "Slot": SlotPropertyMacro.self]
+        let testMacros: [String: Macro.Type] = ["Slots": SlotMacro.self, "Slot": SlotPropertyMacro.self]
         assertMacroExpansion(
             """
-            @Slotted
+            @Slots
             struct Banner<Icon: View, Label: View>: View {
                 var isEnabled: Bool
                 var badge: Int = 0

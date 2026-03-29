@@ -61,8 +61,8 @@ public struct SlotMacro: MemberMacro, ExtensionMacro {
 
 /// Returns the explicit access modifier of the struct, if any (e.g. "public", "package").
 /// Returns `nil` when no modifier is present (defaults to internal).
-func accessModifier(of declaration: some DeclGroupSyntax) -> String? {
-    let accessKeywords: Set<String> = ["public", "package", "internal", "fileprivate", "private", "open"]
+private func accessModifier(of declaration: some DeclGroupSyntax) -> String? {
+    let accessKeywords: Set<String> = ["public", "package", "internal", "fileprivate", "private"]
     return declaration.as(StructDeclSyntax.self)?
         .modifiers
         .first { accessKeywords.contains($0.name.text) }?
@@ -74,50 +74,54 @@ func accessModifier(of declaration: some DeclGroupSyntax) -> String? {
 /// A stored property that has no `@Slot` annotation.
 /// Appears as a labeled parameter in every generated init; if it has a default value,
 /// the parameter includes that default so callers can omit it.
-struct PlainProperty {
+private struct PlainProperty {
     let name: String
     let typeStr: String
     let defaultValue: String?
 }
 
-func collectPlainProperties(from declaration: some DeclGroupSyntax) -> [PlainProperty] {
+private func collectPlainProperties(from declaration: some DeclGroupSyntax) -> [PlainProperty] {
     guard let structDecl = declaration.as(StructDeclSyntax.self) else { return [] }
 
     let genericNames = Set(
         structDecl.genericParameterClause?.parameters.map { $0.name.text } ?? []
     )
 
-    return structDecl.memberBlock.members.compactMap { member -> PlainProperty? in
+    return structDecl.memberBlock.members.flatMap { member -> [PlainProperty] in
         guard
             let varDecl = member.decl.as(VariableDeclSyntax.self),
-            let binding = varDecl.bindings.first,
-            binding.accessorBlock == nil,    // not computed
-            let identifier = binding.pattern.as(IdentifierPatternSyntax.self),
-            let typeAnnotation = binding.typeAnnotation?.type,
             // Not annotated with @Slot
             !varDecl.attributes.contains(where: {
                 $0.as(AttributeSyntax.self)?.attributeName
                     .as(IdentifierTypeSyntax.self)?.name.text == "Slot"
-            }),
-            // Not a generic type parameter (required slots) or optional generic (optional slots)
-            !(typeAnnotation.as(IdentifierTypeSyntax.self)
-                .map { genericNames.contains($0.name.text) } ?? false),
-            !(typeAnnotation.as(OptionalTypeSyntax.self)?
-                .wrappedType.as(IdentifierTypeSyntax.self)
-                .map { genericNames.contains($0.name.text) } ?? false)
-        else { return nil }
+            })
+        else { return [] }
 
-        return PlainProperty(
-            name: identifier.identifier.text,
-            typeStr: typeAnnotation.trimmedDescription,
-            defaultValue: binding.initializer?.value.trimmedDescription
-        )
+        return varDecl.bindings.compactMap { binding -> PlainProperty? in
+            guard
+                binding.accessorBlock == nil,    // not computed
+                let identifier = binding.pattern.as(IdentifierPatternSyntax.self),
+                let typeAnnotation = binding.typeAnnotation?.type,
+                // Not a generic type parameter (required slots) or optional generic (optional slots)
+                !(typeAnnotation.as(IdentifierTypeSyntax.self)
+                    .map { genericNames.contains($0.name.text) } ?? false),
+                !(typeAnnotation.as(OptionalTypeSyntax.self)?
+                    .wrappedType.as(IdentifierTypeSyntax.self)
+                    .map { genericNames.contains($0.name.text) } ?? false)
+            else { return nil }
+
+            return PlainProperty(
+                name: identifier.identifier.text,
+                typeStr: typeAnnotation.trimmedDescription,
+                defaultValue: binding.initializer?.value.trimmedDescription
+            )
+        }
     }
 }
 
 // MARK: - Slot descriptor
 
-struct SlotDescriptor {
+private struct SlotDescriptor {
     let name: String
     let genericParam: String
     let isOptional: Bool
@@ -126,7 +130,7 @@ struct SlotDescriptor {
 
 // MARK: - Mode
 
-enum SlotMode: Equatable {
+private enum SlotMode: Equatable {
     case generic  // caller passes any View
     case text     // fix to Text, LocalizedStringKey param, preferred
     case string   // fix to Text, String param, @_disfavoredOverload
@@ -135,7 +139,7 @@ enum SlotMode: Equatable {
 
 // MARK: - Init spec (one init inside an extension)
 
-struct InitSpec {
+private struct InitSpec {
     let params: [String]
     let assignments: [String]
     let isDisfavored: Bool
@@ -144,7 +148,7 @@ struct InitSpec {
 
 // MARK: - Collecting @Slot-annotated properties
 
-func collectSlots(from declaration: some DeclGroupSyntax) throws -> [SlotDescriptor] {
+private func collectSlots(from declaration: some DeclGroupSyntax) throws -> [SlotDescriptor] {
     guard let structDecl = declaration.as(StructDeclSyntax.self) else {
         throw SlotError.notAStruct
     }
@@ -153,42 +157,45 @@ func collectSlots(from declaration: some DeclGroupSyntax) throws -> [SlotDescrip
         structDecl.genericParameterClause?.parameters.map { $0.name.text } ?? []
     )
 
-    return try structDecl.memberBlock.members.compactMap { member -> SlotDescriptor? in
-        guard
-            let varDecl = member.decl.as(VariableDeclSyntax.self),
-            let binding = varDecl.bindings.first,
-            binding.accessorBlock == nil,
-            let identifier = binding.pattern.as(IdentifierPatternSyntax.self),
-            let typeAnnotation = binding.typeAnnotation?.type
-        else { return nil }
+    return try structDecl.memberBlock.members.flatMap { member -> [SlotDescriptor] in
+        guard let varDecl = member.decl.as(VariableDeclSyntax.self) else { return [] }
 
-        let propertyName = identifier.identifier.text
         let slotAttr = varDecl.attributes.first(where: {
             $0.as(AttributeSyntax.self)?.attributeName
                 .as(IdentifierTypeSyntax.self)?.name.text == "Slot"
         })?.as(AttributeSyntax.self)
 
-        // `Icon?` — always a slot, @Slot annotation optional
-        if let inner = typeAnnotation.as(OptionalTypeSyntax.self)?
-                .wrappedType.as(IdentifierTypeSyntax.self)?.name.text,
-           genericNames.contains(inner) {
-            let options = slotAttr.map { parseSlotOptions(from: $0) } ?? ParsedOptions()
+        return try varDecl.bindings.compactMap { binding -> SlotDescriptor? in
+            guard
+                binding.accessorBlock == nil,
+                let identifier = binding.pattern.as(IdentifierPatternSyntax.self),
+                let typeAnnotation = binding.typeAnnotation?.type
+            else { return nil }
 
-            return SlotDescriptor(name: propertyName, genericParam: inner, isOptional: true, hasText: options.contains(.text))
+            let propertyName = identifier.identifier.text
+
+            // `Icon?` — always a slot, @Slot annotation optional
+            if let inner = typeAnnotation.as(OptionalTypeSyntax.self)?
+                    .wrappedType.as(IdentifierTypeSyntax.self)?.name.text,
+               genericNames.contains(inner) {
+                let options = slotAttr.map { parseSlotOptions(from: $0) } ?? ParsedOptions()
+
+                return SlotDescriptor(name: propertyName, genericParam: inner, isOptional: true, hasText: options.contains(.text))
+            }
+
+            // `Icon` — slot only if @Slot annotated
+            if let name = typeAnnotation.as(IdentifierTypeSyntax.self)?.name.text,
+               genericNames.contains(name) {
+                guard slotAttr != nil else { return nil }
+                let options = parseSlotOptions(from: slotAttr!)
+
+                return SlotDescriptor(name: propertyName, genericParam: name, isOptional: false, hasText: options.contains(.text))
+            }
+
+            // @Slot on a non-generic type is an error
+            if slotAttr != nil { throw SlotError.cannotResolveGenericForSlot(propertyName) }
+            return nil
         }
-
-        // `Icon` — slot only if @Slot annotated
-        if let name = typeAnnotation.as(IdentifierTypeSyntax.self)?.name.text,
-           genericNames.contains(name) {
-            guard slotAttr != nil else { return nil }
-            let options = parseSlotOptions(from: slotAttr!)
-
-            return SlotDescriptor(name: propertyName, genericParam: name, isOptional: false, hasText: options.contains(.text))
-        }
-
-        // @Slot on a non-generic type is an error
-        if slotAttr != nil { throw SlotError.cannotResolveGenericForSlot(propertyName) }
-        return nil
     }
 }
 
@@ -212,7 +219,7 @@ private func parseSlotOptions(from attr: AttributeSyntax) -> ParsedOptions {
 
 // MARK: - Cartesian product of slot modes
 
-func allCombinations(for slots: [SlotDescriptor]) -> [[SlotMode]] {
+private func allCombinations(for slots: [SlotDescriptor]) -> [[SlotMode]] {
     slots.reduce([[SlotMode]]()) { combos, slot in
         var modes: [SlotMode] = [.generic]
         if slot.hasText { modes.append(.text); modes.append(.string) }
@@ -228,7 +235,7 @@ func allCombinations(for slots: [SlotDescriptor]) -> [[SlotMode]] {
 /// Groups all non-trivial combinations by their where-clause key so that `.text` and `.string`
 /// variants for the same set of fixed generics land in the same extension.
 /// Plain required properties are prepended to every init's parameter list.
-func extensionGroups(
+private func extensionGroups(
     for slots: [SlotDescriptor],
     plain: [PlainProperty] = [],
     access: String? = nil
@@ -315,7 +322,7 @@ enum SlotError: Error, CustomStringConvertible {
     var description: String {
         switch self {
         case .notAStruct:
-            return "@Slot can only be applied to a struct"
+            return "@Slots can only be applied to a struct"
         case .cannotResolveGenericForSlot(let name):
             return "@Slot on '\(name)': property type must be one of the struct's generic parameters"
         }

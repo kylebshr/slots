@@ -1,23 +1,23 @@
 import XCTest
 import SwiftUI
-import Slot
+import Slots
 
 // MARK: - Test components
 
-@Slotted
+@Slots
 struct Badge<Label: View>: View {
     @Slot(.text) var label: Label?
     var body: some View { EmptyView() }
 }
 
-@Slotted
+@Slots
 struct Card<Title: View, Actions: View>: View {
     @Slot(.text)     var title: Title
     var actions: Actions?
     var body: some View { EmptyView() }
 }
 
-@Slotted
+@Slots
 struct Row<Leading: View, Content: View, Trailing: View>: View {
     var isSelected: Bool
     var leading: Leading?

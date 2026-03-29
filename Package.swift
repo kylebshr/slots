@@ -4,7 +4,7 @@ import PackageDescription
 import CompilerPluginSupport
 
 let package = Package(
-    name: "Slot",
+    name: "Slots",
     platforms: [
         .macOS(.v14),
         .iOS(.v17),
@@ -13,14 +13,14 @@ let package = Package(
         .macCatalyst(.v17)
     ],
     products: [
-        .library(name: "Slot", targets: ["Slot"]),
+        .library(name: "Slots", targets: ["Slots"]),
     ],
     dependencies: [
         .package(url: "https://github.com/swiftlang/swift-syntax.git", from: "601.0.0"),
     ],
     targets: [
         .target(
-            name: "Slot",
+            name: "Slots",
             dependencies: ["SlotMacros"]
         ),
         .macro(
@@ -35,7 +35,7 @@ let package = Package(
         .testTarget(
             name: "SlotTests",
             dependencies: [
-                "Slot",
+                "Slots",
                 "SlotMacros",
                 .product(name: "SwiftSyntaxMacrosTestSupport", package: "swift-syntax"),
             ]
