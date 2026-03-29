@@ -19,21 +19,18 @@ public struct SlotMacro: MemberMacro, ExtensionMacro {
         let slots = try collectSlots(from: declaration)
         guard !slots.isEmpty else { return [] }
 
-        let params =
-            (plain.map { p in
-                if p.isGenericView {
-                    return "@ViewBuilder \(p.name): () -> \(p.typeStr)"
-                }
-                return p.defaultValue.map { "\(p.name): \(p.typeStr) = \($0)" } ?? "\(p.name): \(p.typeStr)"
+        var entries =
+            plain.map { paramEntry(for: $0) }
+            + slots.map {
+                ParamEntry(
+                    param: "@ViewBuilder \($0.name): () -> \($0.genericParam)",
+                    assignment: "self.\($0.name) = \($0.name)()",
+                    tier: .viewBuilder
+                )
             }
-            + slots.map { "@ViewBuilder \($0.name): () -> \($0.genericParam)" })
-            .joined(separator: ", ")
-        let assignments =
-            (plain.map { p in
-                p.isGenericView ? "self.\(p.name) = \(p.name)()" : "self.\(p.name) = \(p.name)"
-            }
-            + slots.map { "self.\($0.name) = \($0.name)()" })
-            .joined(separator: "\n    ")
+        entries.sort { $0.tier < $1.tier }
+        let params = entries.map(\.param).joined(separator: ", ")
+        let assignments = entries.map(\.assignment).joined(separator: "\n    ")
         let accessPrefix = access.map { "\($0) " } ?? ""
 
         return [
@@ -97,6 +94,8 @@ private struct PlainProperty {
     let typeStr: String
     let defaultValue: String?
     let isGenericView: Bool
+    let isClosure: Bool
+    let needsEscaping: Bool
 }
 
 private func collectPlainProperties(from declaration: some DeclGroupSyntax) -> [PlainProperty] {
@@ -135,18 +134,78 @@ private func collectPlainProperties(from declaration: some DeclGroupSyntax) -> [
                     name: identifier.identifier.text,
                     typeStr: typeName,
                     defaultValue: nil,
-                    isGenericView: true
+                    isGenericView: true,
+                    isClosure: false,
+                    needsEscaping: false
                 )
             }
 
+            let closure = isFunctionType(typeAnnotation)
+            let optional = typeAnnotation.is(OptionalTypeSyntax.self)
             return PlainProperty(
                 name: identifier.identifier.text,
                 typeStr: typeAnnotation.trimmedDescription,
                 defaultValue: binding.initializer?.value.trimmedDescription,
-                isGenericView: false
+                isGenericView: false,
+                isClosure: closure,
+                needsEscaping: closure && !optional
             )
         }
     }
+}
+
+// MARK: - Function type detection
+
+private func isFunctionType(_ type: TypeSyntax) -> Bool {
+    if type.is(FunctionTypeSyntax.self) { return true }
+    if let attributed = type.as(AttributedTypeSyntax.self) {
+        return isFunctionType(attributed.baseType)
+    }
+    if let optional = type.as(OptionalTypeSyntax.self) {
+        return isFunctionType(optional.wrappedType)
+    }
+    if let tuple = type.as(TupleTypeSyntax.self),
+        tuple.elements.count == 1,
+        let inner = tuple.elements.first?.type
+    {
+        return isFunctionType(inner)
+    }
+    return false
+}
+
+// MARK: - Parameter ordering
+
+/// Parameters are sorted by tier to match SwiftUI conventions:
+/// value params first, then closures, then @ViewBuilder closures last.
+private enum ParamTier: Comparable {
+    case value
+    case closure
+    case viewBuilder
+}
+
+private struct ParamEntry {
+    let param: String
+    let assignment: String
+    let tier: ParamTier
+}
+
+private func paramEntry(for p: PlainProperty) -> ParamEntry {
+    if p.isGenericView {
+        return ParamEntry(
+            param: "@ViewBuilder \(p.name): () -> \(p.typeStr)",
+            assignment: "self.\(p.name) = \(p.name)()",
+            tier: .viewBuilder
+        )
+    }
+    let escapingPrefix = p.needsEscaping ? "@escaping " : ""
+    let paramStr =
+        p.defaultValue.map { "\(p.name): \(escapingPrefix)\(p.typeStr) = \($0)" }
+        ?? "\(p.name): \(escapingPrefix)\(p.typeStr)"
+    return ParamEntry(
+        param: paramStr,
+        assignment: "self.\(p.name) = \(p.name)",
+        tier: p.isClosure ? .closure : .value
+    )
 }
 
 // MARK: - Slot descriptor
@@ -293,22 +352,12 @@ private func allCombinations(for slots: [SlotDescriptor]) -> [[SlotMode]] {
 
 /// Groups all non-trivial combinations by their where-clause key so that `.text` and `.string`
 /// variants for the same set of fixed generics land in the same extension.
-/// Plain required properties are prepended to every init's parameter list.
+/// Parameters are sorted by tier: value params, then closures, then @ViewBuilder closures.
 private func extensionGroups(
     for slots: [SlotDescriptor],
     plain: [PlainProperty] = [],
     access: String? = nil
 ) -> [(whereClause: String, specs: [InitSpec])] {
-    let plainParams = plain.map { p in
-        if p.isGenericView {
-            return "@ViewBuilder \(p.name): () -> \(p.typeStr)"
-        }
-        return p.defaultValue.map { "\(p.name): \(p.typeStr) = \($0)" } ?? "\(p.name): \(p.typeStr)"
-    }
-    let plainAssignments = plain.map { p in
-        p.isGenericView ? "self.\(p.name) = \(p.name)()" : "self.\(p.name) = \(p.name)"
-    }
-
     // Use an ordered structure to preserve natural combo order
     var order: [String] = []
     var groups: [String: [InitSpec]] = [:]
@@ -317,52 +366,87 @@ private func extensionGroups(
         guard combo.contains(where: { $0 != .generic }) else { continue }
 
         var constraints: [String] = []
-        var params: [String] = plainParams
-        var assignments: [String] = plainAssignments
+        var entries: [ParamEntry] = plain.map { paramEntry(for: $0) }
+        var emptyAssignments: [String] = []
         var isDisfavored = false
 
         for (slot, mode) in zip(slots, combo) {
             switch mode {
             case .generic:
-                params.append("@ViewBuilder \(slot.name): () -> \(slot.genericParam)")
-                assignments.append("self.\(slot.name) = \(slot.name)()")
+                entries.append(
+                    ParamEntry(
+                        param: "@ViewBuilder \(slot.name): () -> \(slot.genericParam)",
+                        assignment: "self.\(slot.name) = \(slot.name)()",
+                        tier: .viewBuilder
+                    ))
             case .text:
                 constraints.append("\(slot.genericParam) == Text")
                 if slot.isOptional {
-                    params.append("\(slot.name): LocalizedStringKey?")
-                    assignments.append("self.\(slot.name) = \(slot.name).map { Text($0) }")
+                    entries.append(
+                        ParamEntry(
+                            param: "\(slot.name): LocalizedStringKey?",
+                            assignment: "self.\(slot.name) = \(slot.name).map { Text($0) }",
+                            tier: .value
+                        ))
                 } else {
-                    params.append("\(slot.name): LocalizedStringKey")
-                    assignments.append("self.\(slot.name) = Text(\(slot.name))")
+                    entries.append(
+                        ParamEntry(
+                            param: "\(slot.name): LocalizedStringKey",
+                            assignment: "self.\(slot.name) = Text(\(slot.name))",
+                            tier: .value
+                        ))
                 }
             case .string:
                 constraints.append("\(slot.genericParam) == Text")
                 if slot.isOptional {
-                    params.append("\(slot.name): String?")
-                    assignments.append("self.\(slot.name) = \(slot.name).map { Text($0) }")
+                    entries.append(
+                        ParamEntry(
+                            param: "\(slot.name): String?",
+                            assignment: "self.\(slot.name) = \(slot.name).map { Text($0) }",
+                            tier: .value
+                        ))
                 } else {
-                    params.append("\(slot.name): String")
-                    assignments.append("self.\(slot.name) = Text(\(slot.name))")
+                    entries.append(
+                        ParamEntry(
+                            param: "\(slot.name): String",
+                            assignment: "self.\(slot.name) = Text(\(slot.name))",
+                            tier: .value
+                        ))
                 }
                 isDisfavored = true
             case .image:
                 let paramName = "\(slot.name)SystemName"
                 constraints.append("\(slot.genericParam) == Image")
                 if slot.isOptional {
-                    params.append("\(paramName): String?")
-                    assignments.append("self.\(slot.name) = \(paramName).map { Image(systemName: $0) }")
+                    entries.append(
+                        ParamEntry(
+                            param: "\(paramName): String?",
+                            assignment: "self.\(slot.name) = \(paramName).map { Image(systemName: $0) }",
+                            tier: .value
+                        ))
                 } else {
-                    params.append("\(paramName): String")
-                    assignments.append("self.\(slot.name) = Image(systemName: \(paramName))")
+                    entries.append(
+                        ParamEntry(
+                            param: "\(paramName): String",
+                            assignment: "self.\(slot.name) = Image(systemName: \(paramName))",
+                            tier: .value
+                        ))
                 }
             case .empty:
                 constraints.append("\(slot.genericParam) == Never")
-                assignments.append("self.\(slot.name) = nil")
+                emptyAssignments.append("self.\(slot.name) = nil")
             }
         }
 
+        entries.sort { $0.tier < $1.tier }
+
         let key = constraints.joined(separator: ", ")
-        let spec = InitSpec(params: params, assignments: assignments, isDisfavored: isDisfavored, access: access)
+        let spec = InitSpec(
+            params: entries.map(\.param),
+            assignments: entries.map(\.assignment) + emptyAssignments,
+            isDisfavored: isDisfavored,
+            access: access
+        )
 
         if groups[key] == nil {
             order.append(key)

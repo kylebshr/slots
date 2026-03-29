@@ -1,3 +1,4 @@
+import Slots
 import SwiftUI
 
 // MARK: - Chip (2 slots + 1 generic view)
@@ -150,6 +151,24 @@ import SwiftUI
     }
 }
 
+// MARK: - ActionButton (1 slot + closure property)
+
+@Slots public struct ActionButton<Label: View>: View {
+    var action: () -> Void
+    @Slot(.text) var label: Label
+
+    public var body: some View {
+        Button(action: action) {
+            label
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .background(Capsule().fill(.tint))
+                .foregroundStyle(.white)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 // MARK: - Previews
 
 struct Examples_Previews: PreviewProvider {
@@ -157,8 +176,8 @@ struct Examples_Previews: PreviewProvider {
         ScrollView {
             VStack(spacing: 24) {
                 // Chip examples
-                Chip(accessory: { EmptyView() }, label: "Default")
-                Chip(accessory: { EmptyView() }, iconSystemName: "star.fill", label: "Featured")
+                Chip(label: "Default", accessory: { EmptyView() })
+                Chip(iconSystemName: "star.fill", label: "Featured", accessory: { EmptyView() })
 
                 // Banner examples
                 Banner(style: .info, message: "Sync complete.")
@@ -181,12 +200,17 @@ struct Examples_Previews: PreviewProvider {
                         Button("Refresh") {}
                     })
 
+                // ActionButton examples
+                ActionButton(label: "Save", action: {})
+                ActionButton(action: {}) { Text("Custom Label").bold() }
+
                 // ToolbarRow examples
                 ToolbarRow(title: "Inbox")
                 ToolbarRow(
+                    title: "Details",
                     leading: {
                         Button(action: {}) { Image(systemName: "chevron.left") }
-                    }, title: "Details",
+                    },
                     trailing: {
                         Button(action: {}) { Image(systemName: "ellipsis") }
                     })

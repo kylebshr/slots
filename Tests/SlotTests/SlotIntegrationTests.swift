@@ -76,7 +76,7 @@ final class SlotIntegrationTests: XCTestCase {
             isSelected: false, leading: { Image(systemName: "star") }, content: { Text("hi") }, trailing: { Text("→") })
         // LocalizedStringKey content, generic leading + trailing
         let _: Row<Image, Text, Text> = Row(
-            isSelected: true, leading: { Image(systemName: "star") }, content: "hi", trailing: { Text("→") })
+            isSelected: true, content: "hi", leading: { Image(systemName: "star") }, trailing: { Text("→") })
         // image leading, LocalizedStringKey content, generic trailing
         let _: Row<Image, Text, Text> = Row(
             isSelected: false, leadingSystemName: "star", content: "hi", trailing: { Text("→") })

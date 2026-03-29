@@ -13,7 +13,8 @@ let package = Package(
         .macCatalyst(.v17),
     ],
     products: [
-        .library(name: "Slots", targets: ["Slots"])
+        .library(name: "Slots", targets: ["Slots"]),
+        .library(name: "SlotsExamples", targets: ["SlotsExamples"]),
     ],
     dependencies: [
         .package(url: "https://github.com/swiftlang/swift-syntax.git", from: "601.0.0")
@@ -31,6 +32,10 @@ let package = Package(
                 .product(name: "SwiftCompilerPlugin", package: "swift-syntax"),
                 .product(name: "SwiftDiagnostics", package: "swift-syntax"),
             ]
+        ),
+        .target(
+            name: "SlotsExamples",
+            dependencies: ["Slots"]
         ),
         .testTarget(
             name: "SlotTests",

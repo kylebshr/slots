@@ -102,13 +102,13 @@ struct Badge<Icon: View, Label: View>: View {
 Generated inits:
 
 ```swift
-// Base
+// Base — all @ViewBuilder
 init(@ViewBuilder icon: () -> Icon, @ViewBuilder label: () -> Label)
 
-// extension Badge where Label == Text
-init(@ViewBuilder icon: () -> Icon, label: LocalizedStringKey)           // preferred
+// extension Badge where Label == Text — value param before @ViewBuilder
+init(label: LocalizedStringKey, @ViewBuilder icon: () -> Icon)           // preferred
 @_disfavoredOverload
-init(@ViewBuilder icon: () -> Icon, label: String)                       // disfavored
+init(label: String, @ViewBuilder icon: () -> Icon)                       // disfavored
 
 // extension Badge where Icon == Never
 init(@ViewBuilder label: () -> Label)
@@ -124,7 +124,7 @@ Call sites:
 ```swift
 Badge(label: "New")                                    // LocalizedStringKey, no icon
 Badge(label: "New" as String)                          // explicit String, no icon
-Badge(icon: { Image(systemName: "star") }, label: "New")  // icon + LocalizedStringKey
+Badge(label: "New") { Image(systemName: "star") }     // LocalizedStringKey + icon
 Badge { starView } label: { customLabel }              // fully generic
 ```
 
@@ -132,7 +132,7 @@ Badge { starView } label: { customLabel }              // fully generic
 
 ## Plain stored properties
 
-Non-slot stored properties are included as labeled parameters in every generated init, before the slot parameters. Properties with a default value carry that default in the generated signature:
+Non-slot stored properties are included as labeled parameters in every generated init. Properties with a default value carry that default in the generated signature:
 
 ```swift
 @Slots
@@ -150,6 +150,34 @@ init(isSelected: Bool, badge: Int = 0, @ViewBuilder content: () -> Content)
 init(isSelected: Bool, badge: Int = 0, content: LocalizedStringKey)
 @_disfavoredOverload
 init(isSelected: Bool, badge: Int = 0, content: String)
+```
+
+## Parameter ordering
+
+Generated init parameters are sorted by type to match SwiftUI conventions, regardless of declaration order in the struct:
+
+1. **Value parameters** — plain stored properties (`style: Int`, `isEnabled: Bool`) and text/string/image slot parameters (`title: LocalizedStringKey`, `iconSystemName: String`)
+2. **Closure parameters** — plain stored properties with function types (`action: @escaping () -> Void`). Non-optional closures automatically get `@escaping`.
+3. **@ViewBuilder closures** — slots in generic mode and plain generic view properties (`@ViewBuilder label: () -> Label`)
+
+This means the last `@ViewBuilder` parameter always supports trailing closure syntax:
+
+```swift
+@Slots
+struct ActionButton<Label: View>: View {
+    var action: () -> Void
+    @Slot(.text) var label: Label
+
+    var body: some View { ... }
+}
+
+// text mode: value → closure
+ActionButton(label: "Save", action: { print("saved") })
+
+// generic mode: closure → @ViewBuilder (trailing closure)
+ActionButton(action: { print("saved") }) {
+    Text("Save").bold()
+}
 ```
 
 ---
