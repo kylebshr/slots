@@ -1,7 +1,7 @@
 // swift-tools-version: 6.0
 
-import PackageDescription
 import CompilerPluginSupport
+import PackageDescription
 
 let package = Package(
     name: "Slots",
@@ -10,13 +10,13 @@ let package = Package(
         .iOS(.v17),
         .tvOS(.v17),
         .watchOS(.v10),
-        .macCatalyst(.v17)
+        .macCatalyst(.v17),
     ],
     products: [
-        .library(name: "Slots", targets: ["Slots"]),
+        .library(name: "Slots", targets: ["Slots"])
     ],
     dependencies: [
-        .package(url: "https://github.com/swiftlang/swift-syntax.git", from: "601.0.0"),
+        .package(url: "https://github.com/swiftlang/swift-syntax.git", from: "601.0.0")
     ],
     targets: [
         .target(

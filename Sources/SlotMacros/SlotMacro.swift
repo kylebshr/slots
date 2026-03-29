@@ -20,11 +20,18 @@ public struct SlotMacro: MemberMacro, ExtensionMacro {
         guard !slots.isEmpty else { return [] }
 
         let params =
-            (plain.map { p in p.defaultValue.map { "\(p.name): \(p.typeStr) = \($0)" } ?? "\(p.name): \(p.typeStr)" }
+            (plain.map { p in
+                if p.isGenericView {
+                    return "@ViewBuilder \(p.name): () -> \(p.typeStr)"
+                }
+                return p.defaultValue.map { "\(p.name): \(p.typeStr) = \($0)" } ?? "\(p.name): \(p.typeStr)"
+            }
             + slots.map { "@ViewBuilder \($0.name): () -> \($0.genericParam)" })
             .joined(separator: ", ")
         let assignments =
-            (plain.map { "self.\($0.name) = \($0.name)" }
+            (plain.map { p in
+                p.isGenericView ? "self.\(p.name) = \(p.name)()" : "self.\(p.name) = \(p.name)"
+            }
             + slots.map { "self.\($0.name) = \($0.name)()" })
             .joined(separator: "\n    ")
         let accessPrefix = access.map { "\($0) " } ?? ""
@@ -80,6 +87,7 @@ private struct PlainProperty {
     let name: String
     let typeStr: String
     let defaultValue: String?
+    let isGenericView: Bool
 }
 
 private func collectPlainProperties(from declaration: some DeclGroupSyntax) -> [PlainProperty] {
@@ -104,18 +112,29 @@ private func collectPlainProperties(from declaration: some DeclGroupSyntax) -> [
                 binding.accessorBlock == nil,  // not computed
                 let identifier = binding.pattern.as(IdentifierPatternSyntax.self),
                 let typeAnnotation = binding.typeAnnotation?.type,
-                // Not a generic type parameter (required slots) or optional generic (optional slots)
-                !(typeAnnotation.as(IdentifierTypeSyntax.self)
-                    .map { genericNames.contains($0.name.text) } ?? false),
+                // Optional generics without @Slot are still auto-slots, skip them
                 !(typeAnnotation.as(OptionalTypeSyntax.self)?
                     .wrappedType.as(IdentifierTypeSyntax.self)
                     .map { genericNames.contains($0.name.text) } ?? false)
             else { return nil }
 
+            // Required generic type without @Slot — include as @ViewBuilder closure param
+            if let typeName = typeAnnotation.as(IdentifierTypeSyntax.self)?.name.text,
+                genericNames.contains(typeName)
+            {
+                return PlainProperty(
+                    name: identifier.identifier.text,
+                    typeStr: typeName,
+                    defaultValue: nil,
+                    isGenericView: true
+                )
+            }
+
             return PlainProperty(
                 name: identifier.identifier.text,
                 typeStr: typeAnnotation.trimmedDescription,
-                defaultValue: binding.initializer?.value.trimmedDescription
+                defaultValue: binding.initializer?.value.trimmedDescription,
+                isGenericView: false
             )
         }
     }
@@ -258,9 +277,14 @@ private func extensionGroups(
     access: String? = nil
 ) -> [(whereClause: String, specs: [InitSpec])] {
     let plainParams = plain.map { p in
-        p.defaultValue.map { "\(p.name): \(p.typeStr) = \($0)" } ?? "\(p.name): \(p.typeStr)"
+        if p.isGenericView {
+            return "@ViewBuilder \(p.name): () -> \(p.typeStr)"
+        }
+        return p.defaultValue.map { "\(p.name): \(p.typeStr) = \($0)" } ?? "\(p.name): \(p.typeStr)"
     }
-    let plainAssignments = plain.map { "self.\($0.name) = \($0.name)" }
+    let plainAssignments = plain.map { p in
+        p.isGenericView ? "self.\(p.name) = \(p.name)()" : "self.\(p.name) = \(p.name)"
+    }
 
     // Use an ordered structure to preserve natural combo order
     var order: [String] = []
@@ -281,18 +305,33 @@ private func extensionGroups(
                 assignments.append("self.\(slot.name) = \(slot.name)()")
             case .text:
                 constraints.append("\(slot.genericParam) == Text")
-                params.append("\(slot.name): LocalizedStringKey")
-                assignments.append("self.\(slot.name) = Text(\(slot.name))")
+                if slot.isOptional {
+                    params.append("\(slot.name): LocalizedStringKey?")
+                    assignments.append("self.\(slot.name) = \(slot.name).map { Text($0) }")
+                } else {
+                    params.append("\(slot.name): LocalizedStringKey")
+                    assignments.append("self.\(slot.name) = Text(\(slot.name))")
+                }
             case .string:
                 constraints.append("\(slot.genericParam) == Text")
-                params.append("\(slot.name): String")
-                assignments.append("self.\(slot.name) = Text(\(slot.name))")
+                if slot.isOptional {
+                    params.append("\(slot.name): String?")
+                    assignments.append("self.\(slot.name) = \(slot.name).map { Text($0) }")
+                } else {
+                    params.append("\(slot.name): String")
+                    assignments.append("self.\(slot.name) = Text(\(slot.name))")
+                }
                 isDisfavored = true
             case .image:
                 let paramName = "\(slot.name)SystemName"
                 constraints.append("\(slot.genericParam) == Image")
-                params.append("\(paramName): String")
-                assignments.append("self.\(slot.name) = Image(systemName: \(paramName))")
+                if slot.isOptional {
+                    params.append("\(paramName): String?")
+                    assignments.append("self.\(slot.name) = \(paramName).map { Image(systemName: $0) }")
+                } else {
+                    params.append("\(paramName): String")
+                    assignments.append("self.\(slot.name) = Image(systemName: \(paramName))")
+                }
             case .empty:
                 constraints.append("\(slot.genericParam) == Never")
                 assignments.append("self.\(slot.name) = nil")

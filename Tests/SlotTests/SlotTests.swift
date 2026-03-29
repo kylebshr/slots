@@ -94,13 +94,17 @@ final class SlotTests: XCTestCase {
                 }
 
                 extension Badge where Label == Text {
-                    init(label: LocalizedStringKey) {
-                        self.label = Text(label)
+                    init(label: LocalizedStringKey?) {
+                        self.label = label.map {
+                            Text($0)
+                        }
                     }
 
                     @_disfavoredOverload
-                    init(label: String) {
-                        self.label = Text(label)
+                    init(label: String?) {
+                        self.label = label.map {
+                            Text($0)
+                        }
                     }
                 }
 
@@ -915,21 +919,27 @@ final class SlotTests: XCTestCase {
                 }
 
                 extension Chip where Icon == Image {
-                    init(iconSystemName: String, @ViewBuilder label: () -> Label) {
-                        self.icon = Image(systemName: iconSystemName)
+                    init(iconSystemName: String?, @ViewBuilder label: () -> Label) {
+                        self.icon = iconSystemName.map {
+                            Image(systemName: $0)
+                        }
                         self.label = label()
                     }
                 }
 
                 extension Chip where Icon == Image, Label == Text {
-                    init(iconSystemName: String, label: LocalizedStringKey) {
-                        self.icon = Image(systemName: iconSystemName)
+                    init(iconSystemName: String?, label: LocalizedStringKey) {
+                        self.icon = iconSystemName.map {
+                            Image(systemName: $0)
+                        }
                         self.label = Text(label)
                     }
 
                     @_disfavoredOverload
-                    init(iconSystemName: String, label: String) {
-                        self.icon = Image(systemName: iconSystemName)
+                    init(iconSystemName: String?, label: String) {
+                        self.icon = iconSystemName.map {
+                            Image(systemName: $0)
+                        }
                         self.label = Text(label)
                     }
                 }
