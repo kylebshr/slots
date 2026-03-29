@@ -132,24 +132,24 @@ Badge { starView } label: { customLabel }              // fully generic
 
 ## Plain stored properties
 
-Non-slot stored properties without a default value are included as labeled parameters in every generated init, before the slot parameters:
+Non-slot stored properties are included as labeled parameters in every generated init, before the slot parameters. Properties with a default value carry that default in the generated signature:
 
 ```swift
 @Slotted
 struct Row<Content: View>: View {
-    var isSelected: Bool          // no default → appears in every init
-    var badge: Int = 0            // has default → omitted from inits
+    var isSelected: Bool          // no default → required in every init
+    var badge: Int = 0            // has default → optional param in every init
     @Slot(.text) var content: Content
 
     var body: some View { ... }
 }
 
 // Generated:
-init(isSelected: Bool, @ViewBuilder content: () -> Content)
+init(isSelected: Bool, badge: Int = 0, @ViewBuilder content: () -> Content)
 // extension Row where Content == Text
-init(isSelected: Bool, content: LocalizedStringKey)
+init(isSelected: Bool, badge: Int = 0, content: LocalizedStringKey)
 @_disfavoredOverload
-init(isSelected: Bool, content: String)
+init(isSelected: Bool, badge: Int = 0, content: String)
 ```
 
 ---
@@ -179,8 +179,6 @@ import SwiftUI
 struct MyComponent<...>: View { ... }
 ```
 
-> **Note on previews:** Due to a type-checking ordering conflict between `#Preview` and `@attached(extension)` macros, use `PreviewProvider` instead of `#Preview` when writing previews inside a library module. Previews in app targets work fine with either form.
-
 ---
 
 ## How it works
@@ -189,5 +187,3 @@ struct MyComponent<...>: View { ... }
 
 - The **member** expansion adds the base all-generic `init` directly on the struct, with each slot parameter as a `@ViewBuilder` closure.
 - The **extension** expansion generates one `extension MyComponent where ...` per unique combination of fixed slot types. Grouping by where-clause means `LocalizedStringKey` and `String` variants for the same slot share a single extension with two `init` overloads.
-
-Because the concrete types are fixed by the where clause rather than cast inside the init, the entire thing is fully type-safe — `Badge<Never, Text>` and `Badge<Image, Text>` are genuinely different types.

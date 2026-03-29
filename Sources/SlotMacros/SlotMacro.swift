@@ -15,11 +15,11 @@ public struct SlotMacro: MemberMacro, ExtensionMacro {
         in context: some MacroExpansionContext
     ) throws -> [DeclSyntax] {
         let access = accessModifier(of: declaration)
-        let plain = collectPlainRequiredProperties(from: declaration)
+        let plain = collectPlainProperties(from: declaration)
         let slots = try collectSlots(from: declaration)
         guard !slots.isEmpty else { return [] }
 
-        let params = (plain.map { "\($0.name): \($0.typeStr)" }
+        let params = (plain.map { p in p.defaultValue.map { "\(p.name): \(p.typeStr) = \($0)" } ?? "\(p.name): \(p.typeStr)" }
                     + slots.map { "@ViewBuilder \($0.name): () -> \($0.genericParam)" })
             .joined(separator: ", ")
         let assignments = (plain.map { "self.\($0.name) = \($0.name)" }
@@ -46,7 +46,7 @@ public struct SlotMacro: MemberMacro, ExtensionMacro {
         in context: some MacroExpansionContext
     ) throws -> [ExtensionDeclSyntax] {
         let access = accessModifier(of: declaration)
-        let plain = collectPlainRequiredProperties(from: declaration)
+        let plain = collectPlainProperties(from: declaration)
         let slots = try collectSlots(from: declaration)
         guard !slots.isEmpty else { return [] }
 
@@ -71,14 +71,16 @@ func accessModifier(of declaration: some DeclGroupSyntax) -> String? {
 
 // MARK: - Plain (non-slot) required property
 
-/// A stored property that has no `@Slot` annotation and no default value.
-/// It must appear as a labeled parameter in every generated init.
+/// A stored property that has no `@Slot` annotation.
+/// Appears as a labeled parameter in every generated init; if it has a default value,
+/// the parameter includes that default so callers can omit it.
 struct PlainProperty {
     let name: String
     let typeStr: String
+    let defaultValue: String?
 }
 
-func collectPlainRequiredProperties(from declaration: some DeclGroupSyntax) -> [PlainProperty] {
+func collectPlainProperties(from declaration: some DeclGroupSyntax) -> [PlainProperty] {
     guard let structDecl = declaration.as(StructDeclSyntax.self) else { return [] }
 
     let genericNames = Set(
@@ -90,7 +92,6 @@ func collectPlainRequiredProperties(from declaration: some DeclGroupSyntax) -> [
             let varDecl = member.decl.as(VariableDeclSyntax.self),
             let binding = varDecl.bindings.first,
             binding.accessorBlock == nil,    // not computed
-            binding.initializer == nil,      // no default value
             let identifier = binding.pattern.as(IdentifierPatternSyntax.self),
             let typeAnnotation = binding.typeAnnotation?.type,
             // Not annotated with @Slot
@@ -108,7 +109,8 @@ func collectPlainRequiredProperties(from declaration: some DeclGroupSyntax) -> [
 
         return PlainProperty(
             name: identifier.identifier.text,
-            typeStr: typeAnnotation.trimmedDescription
+            typeStr: typeAnnotation.trimmedDescription,
+            defaultValue: binding.initializer?.value.trimmedDescription
         )
     }
 }
@@ -231,7 +233,7 @@ func extensionGroups(
     plain: [PlainProperty] = [],
     access: String? = nil
 ) -> [(whereClause: String, specs: [InitSpec])] {
-    let plainParams      = plain.map { "\($0.name): \($0.typeStr)" }
+    let plainParams      = plain.map { p in p.defaultValue.map { "\(p.name): \(p.typeStr) = \($0)" } ?? "\(p.name): \(p.typeStr)" }
     let plainAssignments = plain.map { "self.\($0.name) = \($0.name)" }
 
     // Use an ordered structure to preserve natural combo order

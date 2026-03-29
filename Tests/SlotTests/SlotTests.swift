@@ -724,7 +724,8 @@ func testSingleSlotOptional() {
         )
     }
 
-    // Plain stored properties WITH a default value are omitted from all generated inits.
+    // Plain stored properties WITH a default value appear in every generated init
+    // with the default value, so callers can omit or override them.
     func testPlainPropertyWithDefault() {
         let testMacros: [String: Macro.Type] = ["Slotted": SlotMacro.self, "Slot": SlotPropertyMacro.self]
         assertMacroExpansion(
@@ -742,18 +743,21 @@ func testSingleSlotOptional() {
                 var label: Label
                 var body: some View { EmptyView() }
 
-                init(@ViewBuilder label: () -> Label) {
+                init(count: Int = 0, @ViewBuilder label: () -> Label) {
+                    self.count = count
                     self.label = label()
                 }
             }
 
             extension Badge where Label == Text {
-                init(label: LocalizedStringKey) {
+                init(count: Int = 0, label: LocalizedStringKey) {
+                    self.count = count
                     self.label = Text(label)
                 }
 
                 @_disfavoredOverload
-                init(label: String) {
+                init(count: Int = 0, label: String) {
+                    self.count = count
                     self.label = Text(label)
                 }
             }
@@ -764,8 +768,8 @@ func testSingleSlotOptional() {
 
     // MARK: - Diagnostic tests
 
-    // Plain stored properties WITHOUT a default value must appear as labeled
-    // parameters in every generated init — base and all constrained extensions.
+    // Plain stored properties — required ones appear as required params, defaulted ones
+    // appear with their default value so callers can omit or override them.
     func testPlainPropertyWithoutDefault() {
         let testMacros: [String: Macro.Type] = ["Slotted": SlotMacro.self, "Slot": SlotPropertyMacro.self]
         assertMacroExpansion(
@@ -787,46 +791,52 @@ func testSingleSlotOptional() {
                 var label: Label
                 var body: some View { EmptyView() }
 
-                init(isEnabled: Bool, @ViewBuilder icon: () -> Icon, @ViewBuilder label: () -> Label) {
+                init(isEnabled: Bool, badge: Int = 0, @ViewBuilder icon: () -> Icon, @ViewBuilder label: () -> Label) {
                     self.isEnabled = isEnabled
+                    self.badge = badge
                     self.icon = icon()
                     self.label = label()
                 }
             }
 
             extension Banner where Label == Text {
-                init(isEnabled: Bool, @ViewBuilder icon: () -> Icon, label: LocalizedStringKey) {
+                init(isEnabled: Bool, badge: Int = 0, @ViewBuilder icon: () -> Icon, label: LocalizedStringKey) {
                     self.isEnabled = isEnabled
+                    self.badge = badge
                     self.icon = icon()
                     self.label = Text(label)
                 }
 
                 @_disfavoredOverload
-                init(isEnabled: Bool, @ViewBuilder icon: () -> Icon, label: String) {
+                init(isEnabled: Bool, badge: Int = 0, @ViewBuilder icon: () -> Icon, label: String) {
                     self.isEnabled = isEnabled
+                    self.badge = badge
                     self.icon = icon()
                     self.label = Text(label)
                 }
             }
 
             extension Banner where Icon == Never {
-                init(isEnabled: Bool, @ViewBuilder label: () -> Label) {
+                init(isEnabled: Bool, badge: Int = 0, @ViewBuilder label: () -> Label) {
                     self.isEnabled = isEnabled
+                    self.badge = badge
                     self.icon = nil
                     self.label = label()
                 }
             }
 
             extension Banner where Icon == Never, Label == Text {
-                init(isEnabled: Bool, label: LocalizedStringKey) {
+                init(isEnabled: Bool, badge: Int = 0, label: LocalizedStringKey) {
                     self.isEnabled = isEnabled
+                    self.badge = badge
                     self.icon = nil
                     self.label = Text(label)
                 }
 
                 @_disfavoredOverload
-                init(isEnabled: Bool, label: String) {
+                init(isEnabled: Bool, badge: Int = 0, label: String) {
                     self.isEnabled = isEnabled
+                    self.badge = badge
                     self.icon = nil
                     self.label = Text(label)
                 }
