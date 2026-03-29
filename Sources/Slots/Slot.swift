@@ -6,6 +6,6 @@ import SwiftUI
 /// required on non-optional generics (`Label`) or when specifying options.
 ///
 /// - `.text` — add `init` variants accepting `LocalizedStringKey` and `String` (disfavored), both stored as `Text(...)`
-/// - `.image` — add an `init` variant accepting `{name}SystemName: String`, stored as `Image(systemName:)`
+/// - `.systemImage` — add an `init` variant accepting `{name}SystemName: String`, stored as `Image(systemName:)`
 @attached(peer)
 public macro Slot(_ options: SlotOption...) = #externalMacro(module: "SlotMacros", type: "SlotPropertyMacro")

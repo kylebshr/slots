@@ -20,7 +20,7 @@ struct Card<Title: View, Actions: View>: View {
 @Slots
 struct Row<Leading: View, Content: View, Trailing: View>: View {
     var isSelected: Bool
-    @Slot(.image) var leading: Leading?
+    @Slot(.systemImage) var leading: Leading?
     @Slot(.text) var content: Content
     var trailing: Trailing?
     var body: some View { EmptyView() }

@@ -76,7 +76,7 @@ The `@Slot` property annotation accepts one or more options:
 | Option | Effect |
 |---|---|
 | `.text` | Adds `init` variants where this slot accepts `LocalizedStringKey` (preferred) or `String` (disfavored), both stored as `Text(...)` |
-| `.image` | Adds an `init` variant where this slot accepts `{name}SystemName: String`, stored as `Image(systemName:)` |
+| `.systemImage` | Adds an `init` variant where this slot accepts `{name}SystemName: String`, stored as `Image(systemName:)` |
 
 ### Optional slots
 
@@ -157,7 +157,7 @@ init(isSelected: Bool, badge: Int = 0, content: String)
 
 Generated init parameters are sorted by type to match SwiftUI conventions, regardless of declaration order in the struct:
 
-1. **Value parameters** — plain stored properties (`style: Int`, `isEnabled: Bool`) and text/string/image slot parameters (`title: LocalizedStringKey`, `iconSystemName: String`)
+1. **Value parameters** — plain stored properties (`style: Int`, `isEnabled: Bool`) and text/string/systemImage slot parameters (`title: LocalizedStringKey`, `iconSystemName: String`)
 2. **Closure parameters** — plain stored properties with function types (`action: @escaping () -> Void`). Non-optional closures automatically get `@escaping`.
 3. **@ViewBuilder closures** — slots in generic mode and plain generic view properties (`@ViewBuilder label: () -> Label`)
 

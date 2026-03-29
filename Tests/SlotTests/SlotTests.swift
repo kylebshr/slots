@@ -896,7 +896,7 @@ final class SlotTests: XCTestCase {
             """
             @Slots
             struct Tag<Icon: View>: View {
-                @Slot(.image) var icon: Icon
+                @Slot(.systemImage) var icon: Icon
                 var body: some View { EmptyView() }
             }
             """,
@@ -925,7 +925,7 @@ final class SlotTests: XCTestCase {
             """
             @Slots
             struct Chip<Icon: View, Label: View>: View {
-                @Slot(.image) var icon: Icon?
+                @Slot(.systemImage) var icon: Icon?
                 @Slot(.text) var label: Label
                 var body: some View { EmptyView() }
             }
@@ -1202,18 +1202,18 @@ final class SlotTests: XCTestCase {
     // MARK: - Init limit test
 
     func testTooManyInitsEmitsError() {
-        // 7 slots all with .text + .image + optional = 5 modes each = 5^7 = 78,125 inits
+        // 7 slots all with .text + .systemImage + optional = 5 modes each = 5^7 = 78,125 inits
         assertMacroExpansion(
             """
             @Slots
             struct Overload<A: View, B: View, C: View, D: View, E: View, F: View, G: View>: View {
-                @Slot(.text, .image) var a: A?
-                @Slot(.text, .image) var b: B?
-                @Slot(.text, .image) var c: C?
-                @Slot(.text, .image) var d: D?
-                @Slot(.text, .image) var e: E?
-                @Slot(.text, .image) var f: F?
-                @Slot(.text, .image) var g: G?
+                @Slot(.text, .systemImage) var a: A?
+                @Slot(.text, .systemImage) var b: B?
+                @Slot(.text, .systemImage) var c: C?
+                @Slot(.text, .systemImage) var d: D?
+                @Slot(.text, .systemImage) var e: E?
+                @Slot(.text, .systemImage) var f: F?
+                @Slot(.text, .systemImage) var g: G?
                 var body: some View { EmptyView() }
             }
             """,

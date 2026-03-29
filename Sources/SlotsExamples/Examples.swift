@@ -4,7 +4,7 @@ import SwiftUI
 // MARK: - Chip (2 slots + 1 generic view)
 
 @Slots public struct Chip<Icon: View, Label: View, Accessory: View>: View {
-    @Slot(.image) var icon: Icon?
+    @Slot(.systemImage) var icon: Icon?
     @Slot(.text) var label: Label
     var accessory: Accessory
 
@@ -64,7 +64,7 @@ public enum BannerStyle {
 // MARK: - ListRow (3 slots)
 
 @Slots public struct ListRow<Leading: View, Content: View, Trailing: View>: View {
-    @Slot(.image) var leading: Leading?
+    @Slot(.systemImage) var leading: Leading?
     @Slot(.text) var content: Content
     @Slot(.text) var trailing: Trailing?
 
@@ -86,7 +86,7 @@ public enum BannerStyle {
 
 @Slots public struct Card<Header: View, Media: View, Body: View, Footer: View>: View {
     @Slot(.text) var header: Header
-    @Slot(.image) var media: Media?
+    @Slot(.systemImage) var media: Media?
     @Slot(.text) var body_: Body?
     var footer: Footer?
 
@@ -111,7 +111,7 @@ public enum BannerStyle {
 // MARK: - EmptyState (3 slots)
 
 @Slots public struct EmptyState<Icon: View, Title: View, Action: View>: View {
-    @Slot(.image) var icon: Icon?
+    @Slot(.systemImage) var icon: Icon?
     @Slot(.text) var title: Title
     var action: Action?
 

@@ -260,7 +260,7 @@ private struct SlotDescriptor {
     let genericParam: String
     let isOptional: Bool
     let hasText: Bool
-    let hasImage: Bool
+    let hasSystemImage: Bool
     let declarationIndex: Int
 }
 
@@ -270,7 +270,7 @@ private enum SlotMode: Equatable {
     case generic  // caller passes any View
     case text  // fix to Text, LocalizedStringKey param, preferred
     case string  // fix to Text, String param, @_disfavoredOverload
-    case image  // fix to Image, {name}SystemName: String param
+    case systemImage  // fix to Image, {name}SystemName: String param
     case empty  // fix to Never, parameter omitted (stores nil)
 }
 
@@ -331,7 +331,7 @@ private func collectSlots(
 
                 return SlotDescriptor(
                     name: propertyName, genericParam: inner, isOptional: true, hasText: options.contains(.text),
-                    hasImage: options.contains(.image), declarationIndex: memberIndex)
+                    hasSystemImage: options.contains(.systemImage), declarationIndex: memberIndex)
             }
 
             // `Icon` — slot only if @Slot annotated
@@ -343,7 +343,7 @@ private func collectSlots(
 
                 return SlotDescriptor(
                     name: propertyName, genericParam: name, isOptional: false, hasText: options.contains(.text),
-                    hasImage: options.contains(.image), declarationIndex: memberIndex)
+                    hasSystemImage: options.contains(.systemImage), declarationIndex: memberIndex)
             }
 
             // @Slot on a non-generic type is an error
@@ -361,7 +361,7 @@ private func collectSlots(
 private struct ParsedOptions: OptionSet {
     let rawValue: Int
     static let text = ParsedOptions(rawValue: 1 << 0)
-    static let image = ParsedOptions(rawValue: 1 << 1)
+    static let systemImage = ParsedOptions(rawValue: 1 << 1)
 }
 
 private func parseSlotOptions(from attr: AttributeSyntax) -> ParsedOptions {
@@ -370,7 +370,7 @@ private func parseSlotOptions(from attr: AttributeSyntax) -> ParsedOptions {
     for arg in args {
         switch arg.expression.as(MemberAccessExprSyntax.self)?.declName.baseName.text {
         case "text": result.insert(.text)
-        case "image": result.insert(.image)
+        case "systemImage": result.insert(.systemImage)
         default: break
         }
     }
@@ -385,7 +385,7 @@ private func initCombinationCount(for slots: [SlotDescriptor]) -> Int {
     slots.reduce(1) { count, slot in
         var modes = 1  // generic
         if slot.hasText { modes += 2 }  // text + string
-        if slot.hasImage { modes += 1 }
+        if slot.hasSystemImage { modes += 1 }
         if slot.isOptional { modes += 1 }  // empty
         return count * modes
     }
@@ -400,7 +400,7 @@ private func allCombinations(for slots: [SlotDescriptor]) -> [[SlotMode]] {
             modes.append(.text)
             modes.append(.string)
         }
-        if slot.hasImage { modes.append(.image) }
+        if slot.hasSystemImage { modes.append(.systemImage) }
         if slot.isOptional { modes.append(.empty) }
 
         guard !combos.isEmpty else { return modes.map { [$0] } }
@@ -483,7 +483,7 @@ private func extensionGroups(
                         ))
                 }
                 isDisfavored = true
-            case .image:
+            case .systemImage:
                 let paramName = "\(slot.name)SystemName"
                 constraints.append("\(slot.genericParam) == Image")
                 if slot.isOptional {
