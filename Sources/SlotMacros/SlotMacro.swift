@@ -25,10 +25,11 @@ public struct SlotMacro: MemberMacro, ExtensionMacro {
                 ParamEntry(
                     param: "@ViewBuilder \($0.name): () -> \($0.genericParam)",
                     assignment: "self.\($0.name) = \($0.name)()",
-                    tier: .viewBuilder
+                    tier: .viewBuilder,
+                    declarationIndex: $0.declarationIndex
                 )
             }
-        entries.sort { $0.tier < $1.tier }
+        entries.sort { ($0.tier, $0.declarationIndex) < ($1.tier, $1.declarationIndex) }
         let params = entries.map(\.param).joined(separator: ", ")
         let assignments = entries.map(\.assignment).joined(separator: "\n    ")
         let accessPrefix = access.map { "\($0) " } ?? ""
@@ -97,6 +98,7 @@ private struct PlainProperty {
     let isClosure: Bool
     let needsEscaping: Bool
     let isBinding: Bool
+    let declarationIndex: Int
 }
 
 /// Property wrappers that represent internal state and should be excluded from generated inits.
@@ -114,7 +116,7 @@ private func collectPlainProperties(from declaration: some DeclGroupSyntax) -> [
         structDecl.genericParameterClause?.parameters.map { $0.name.text } ?? []
     )
 
-    return structDecl.memberBlock.members.flatMap { member -> [PlainProperty] in
+    return structDecl.memberBlock.members.enumerated().flatMap { memberIndex, member -> [PlainProperty] in
         guard
             let varDecl = member.decl.as(VariableDeclSyntax.self),
             // Not annotated with @Slot
@@ -159,7 +161,8 @@ private func collectPlainProperties(from declaration: some DeclGroupSyntax) -> [
                     isGenericView: true,
                     isClosure: false,
                     needsEscaping: false,
-                    isBinding: false
+                    isBinding: false,
+                    declarationIndex: memberIndex
                 )
             }
 
@@ -177,7 +180,8 @@ private func collectPlainProperties(from declaration: some DeclGroupSyntax) -> [
                 isGenericView: false,
                 isClosure: closure,
                 needsEscaping: closure && !optional,
-                isBinding: isBinding
+                isBinding: isBinding,
+                declarationIndex: memberIndex
             )
         }
     }
@@ -216,6 +220,7 @@ private struct ParamEntry {
     let param: String
     let assignment: String
     let tier: ParamTier
+    let declarationIndex: Int
 }
 
 private func paramEntry(for p: PlainProperty) -> ParamEntry {
@@ -223,7 +228,8 @@ private func paramEntry(for p: PlainProperty) -> ParamEntry {
         return ParamEntry(
             param: "@ViewBuilder \(p.name): () -> \(p.typeStr)",
             assignment: "self.\(p.name) = \(p.name)()",
-            tier: .viewBuilder
+            tier: .viewBuilder,
+            declarationIndex: p.declarationIndex
         )
     }
     let escapingPrefix = p.needsEscaping ? "@escaping " : ""
@@ -234,7 +240,8 @@ private func paramEntry(for p: PlainProperty) -> ParamEntry {
     return ParamEntry(
         param: paramStr,
         assignment: assignment,
-        tier: p.isClosure ? .closure : .value
+        tier: p.isClosure ? .closure : .value,
+        declarationIndex: p.declarationIndex
     )
 }
 
@@ -246,6 +253,7 @@ private struct SlotDescriptor {
     let isOptional: Bool
     let hasText: Bool
     let hasImage: Bool
+    let declarationIndex: Int
 }
 
 // MARK: - Mode
@@ -278,7 +286,7 @@ private func collectSlots(from declaration: some DeclGroupSyntax) throws -> [Slo
         structDecl.genericParameterClause?.parameters.map { $0.name.text } ?? []
     )
 
-    return try structDecl.memberBlock.members.flatMap { member -> [SlotDescriptor] in
+    return try structDecl.memberBlock.members.enumerated().flatMap { memberIndex, member -> [SlotDescriptor] in
         guard let varDecl = member.decl.as(VariableDeclSyntax.self) else { return [] }
 
         let slotAttr = varDecl.attributes.first(where: {
@@ -304,7 +312,7 @@ private func collectSlots(from declaration: some DeclGroupSyntax) throws -> [Slo
 
                 return SlotDescriptor(
                     name: propertyName, genericParam: inner, isOptional: true, hasText: options.contains(.text),
-                    hasImage: options.contains(.image))
+                    hasImage: options.contains(.image), declarationIndex: memberIndex)
             }
 
             // `Icon` — slot only if @Slot annotated
@@ -316,7 +324,7 @@ private func collectSlots(from declaration: some DeclGroupSyntax) throws -> [Slo
 
                 return SlotDescriptor(
                     name: propertyName, genericParam: name, isOptional: false, hasText: options.contains(.text),
-                    hasImage: options.contains(.image))
+                    hasImage: options.contains(.image), declarationIndex: memberIndex)
             }
 
             // @Slot on a non-generic type is an error
@@ -407,7 +415,8 @@ private func extensionGroups(
                     ParamEntry(
                         param: "@ViewBuilder \(slot.name): () -> \(slot.genericParam)",
                         assignment: "self.\(slot.name) = \(slot.name)()",
-                        tier: .viewBuilder
+                        tier: .viewBuilder,
+                        declarationIndex: slot.declarationIndex
                     ))
             case .text:
                 constraints.append("\(slot.genericParam) == Text")
@@ -416,14 +425,16 @@ private func extensionGroups(
                         ParamEntry(
                             param: "\(slot.name): LocalizedStringKey?",
                             assignment: "self.\(slot.name) = \(slot.name).map { Text($0) }",
-                            tier: .value
+                            tier: .value,
+                            declarationIndex: slot.declarationIndex
                         ))
                 } else {
                     entries.append(
                         ParamEntry(
                             param: "\(slot.name): LocalizedStringKey",
                             assignment: "self.\(slot.name) = Text(\(slot.name))",
-                            tier: .value
+                            tier: .value,
+                            declarationIndex: slot.declarationIndex
                         ))
                 }
             case .string:
@@ -433,14 +444,16 @@ private func extensionGroups(
                         ParamEntry(
                             param: "\(slot.name): String?",
                             assignment: "self.\(slot.name) = \(slot.name).map { Text($0) }",
-                            tier: .value
+                            tier: .value,
+                            declarationIndex: slot.declarationIndex
                         ))
                 } else {
                     entries.append(
                         ParamEntry(
                             param: "\(slot.name): String",
                             assignment: "self.\(slot.name) = Text(\(slot.name))",
-                            tier: .value
+                            tier: .value,
+                            declarationIndex: slot.declarationIndex
                         ))
                 }
                 isDisfavored = true
@@ -452,14 +465,16 @@ private func extensionGroups(
                         ParamEntry(
                             param: "\(paramName): String?",
                             assignment: "self.\(slot.name) = \(paramName).map { Image(systemName: $0) }",
-                            tier: .value
+                            tier: .value,
+                            declarationIndex: slot.declarationIndex
                         ))
                 } else {
                     entries.append(
                         ParamEntry(
                             param: "\(paramName): String",
                             assignment: "self.\(slot.name) = Image(systemName: \(paramName))",
-                            tier: .value
+                            tier: .value,
+                            declarationIndex: slot.declarationIndex
                         ))
                 }
             case .empty:
@@ -468,7 +483,7 @@ private func extensionGroups(
             }
         }
 
-        entries.sort { $0.tier < $1.tier }
+        entries.sort { ($0.tier, $0.declarationIndex) < ($1.tier, $1.declarationIndex) }
 
         let key = constraints.joined(separator: ", ")
         let spec = InitSpec(

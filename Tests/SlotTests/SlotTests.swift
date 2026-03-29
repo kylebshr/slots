@@ -869,10 +869,10 @@ final class SlotTests: XCTestCase {
                     var content: Content
                     var body: some View { EmptyView() }
 
-                    init(subtitle: String? = nil, @ViewBuilder content: () -> Content, @ViewBuilder title: () -> Title) {
+                    init(subtitle: String? = nil, @ViewBuilder title: () -> Title, @ViewBuilder content: () -> Content) {
                         self.subtitle = subtitle
-                        self.content = content()
                         self.title = title()
+                        self.content = content()
                     }
                 }
 
