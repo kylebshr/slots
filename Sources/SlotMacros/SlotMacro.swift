@@ -126,6 +126,7 @@ private struct SlotDescriptor {
     let genericParam: String
     let isOptional: Bool
     let hasText: Bool
+    let hasImage: Bool
 }
 
 // MARK: - Mode
@@ -134,6 +135,7 @@ private enum SlotMode: Equatable {
     case generic  // caller passes any View
     case text     // fix to Text, LocalizedStringKey param, preferred
     case string   // fix to Text, String param, @_disfavoredOverload
+    case image    // fix to Image, {name}SystemName: String param
     case empty    // fix to Never, parameter omitted (stores nil)
 }
 
@@ -180,7 +182,7 @@ private func collectSlots(from declaration: some DeclGroupSyntax) throws -> [Slo
                genericNames.contains(inner) {
                 let options = slotAttr.map { parseSlotOptions(from: $0) } ?? ParsedOptions()
 
-                return SlotDescriptor(name: propertyName, genericParam: inner, isOptional: true, hasText: options.contains(.text))
+                return SlotDescriptor(name: propertyName, genericParam: inner, isOptional: true, hasText: options.contains(.text), hasImage: options.contains(.image))
             }
 
             // `Icon` — slot only if @Slot annotated
@@ -189,7 +191,7 @@ private func collectSlots(from declaration: some DeclGroupSyntax) throws -> [Slo
                 guard slotAttr != nil else { return nil }
                 let options = parseSlotOptions(from: slotAttr!)
 
-                return SlotDescriptor(name: propertyName, genericParam: name, isOptional: false, hasText: options.contains(.text))
+                return SlotDescriptor(name: propertyName, genericParam: name, isOptional: false, hasText: options.contains(.text), hasImage: options.contains(.image))
             }
 
             // @Slot on a non-generic type is an error
@@ -203,15 +205,18 @@ private func collectSlots(from declaration: some DeclGroupSyntax) throws -> [Slo
 
 private struct ParsedOptions: OptionSet {
     let rawValue: Int
-    static let text = ParsedOptions(rawValue: 1 << 0)
+    static let text  = ParsedOptions(rawValue: 1 << 0)
+    static let image = ParsedOptions(rawValue: 1 << 1)
 }
 
 private func parseSlotOptions(from attr: AttributeSyntax) -> ParsedOptions {
     var result = ParsedOptions()
     guard case let .argumentList(args) = attr.arguments else { return result }
     for arg in args {
-        if arg.expression.as(MemberAccessExprSyntax.self)?.declName.baseName.text == "text" {
-            result.insert(.text)
+        switch arg.expression.as(MemberAccessExprSyntax.self)?.declName.baseName.text {
+        case "text":  result.insert(.text)
+        case "image": result.insert(.image)
+        default: break
         }
     }
     return result
@@ -222,8 +227,9 @@ private func parseSlotOptions(from attr: AttributeSyntax) -> ParsedOptions {
 private func allCombinations(for slots: [SlotDescriptor]) -> [[SlotMode]] {
     slots.reduce([[SlotMode]]()) { combos, slot in
         var modes: [SlotMode] = [.generic]
-        if slot.hasText { modes.append(.text); modes.append(.string) }
-        if slot.isOptional     { modes.append(.empty) }
+        if slot.hasText  { modes.append(.text); modes.append(.string) }
+        if slot.hasImage { modes.append(.image) }
+        if slot.isOptional { modes.append(.empty) }
 
         guard !combos.isEmpty else { return modes.map { [$0] } }
         return combos.flatMap { existing in modes.map { existing + [$0] } }
@@ -269,6 +275,11 @@ private func extensionGroups(
                 params.append("\(slot.name): String")
                 assignments.append("self.\(slot.name) = Text(\(slot.name))")
                 isDisfavored = true
+            case .image:
+                let paramName = "\(slot.name)SystemName"
+                constraints.append("\(slot.genericParam) == Image")
+                params.append("\(paramName): String")
+                assignments.append("self.\(slot.name) = Image(systemName: \(paramName))")
             case .empty:
                 constraints.append("\(slot.genericParam) == Never")
                 assignments.append("self.\(slot.name) = nil")

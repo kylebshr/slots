@@ -2,6 +2,7 @@ import SwiftUI
 
 @Slots
 public struct Chip<Icon: View, Label: View>: View {
+    @Slot(.image)
     var icon: Icon?
 
     @Slot(.text)
@@ -22,14 +23,11 @@ struct Chip_Previews: PreviewProvider {
     static var previews: some View {
         VStack {
             Chip(label: "Hello")
+            Chip(iconSystemName: "star.fill", label: "Featured")
             Chip(
                 icon: { Image(systemName: "star.fill") },
                 label: "Featured"
             )
-            Chip {
-                Text("Hello")
-                    .font(.largeTitle)
-            }
         }
         .padding()
     }

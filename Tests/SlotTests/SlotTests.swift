@@ -846,4 +846,116 @@ final class SlotTests: XCTestCase {
         )
     }
 
+    // MARK: - Image slot tests
+
+    func testSingleSlotImage() {
+        let testMacros: [String: Macro.Type] = ["Slots": SlotMacro.self, "Slot": SlotPropertyMacro.self]
+        assertMacroExpansion(
+            """
+            @Slots
+            struct Tag<Icon: View>: View {
+                @Slot(.image) var icon: Icon
+                var body: some View { EmptyView() }
+            }
+            """,
+            expandedSource: """
+            struct Tag<Icon: View>: View {
+                var icon: Icon
+                var body: some View { EmptyView() }
+
+                init(@ViewBuilder icon: () -> Icon) {
+                    self.icon = icon()
+                }
+            }
+
+            extension Tag where Icon == Image {
+                init(iconSystemName: String) {
+                    self.icon = Image(systemName: iconSystemName)
+                }
+            }
+            """,
+            macros: testMacros
+        )
+    }
+
+    func testImageAndTextSlots() {
+        let testMacros: [String: Macro.Type] = ["Slots": SlotMacro.self, "Slot": SlotPropertyMacro.self]
+        assertMacroExpansion(
+            """
+            @Slots
+            struct Chip<Icon: View, Label: View>: View {
+                @Slot(.image) var icon: Icon?
+                @Slot(.text) var label: Label
+                var body: some View { EmptyView() }
+            }
+            """,
+            expandedSource: """
+            struct Chip<Icon: View, Label: View>: View {
+                var icon: Icon?
+                var label: Label
+                var body: some View { EmptyView() }
+
+                init(@ViewBuilder icon: () -> Icon, @ViewBuilder label: () -> Label) {
+                    self.icon = icon()
+                    self.label = label()
+                }
+            }
+
+            extension Chip where Label == Text {
+                init(@ViewBuilder icon: () -> Icon, label: LocalizedStringKey) {
+                    self.icon = icon()
+                    self.label = Text(label)
+                }
+
+                @_disfavoredOverload
+                init(@ViewBuilder icon: () -> Icon, label: String) {
+                    self.icon = icon()
+                    self.label = Text(label)
+                }
+            }
+
+            extension Chip where Icon == Image {
+                init(iconSystemName: String, @ViewBuilder label: () -> Label) {
+                    self.icon = Image(systemName: iconSystemName)
+                    self.label = label()
+                }
+            }
+
+            extension Chip where Icon == Image, Label == Text {
+                init(iconSystemName: String, label: LocalizedStringKey) {
+                    self.icon = Image(systemName: iconSystemName)
+                    self.label = Text(label)
+                }
+
+                @_disfavoredOverload
+                init(iconSystemName: String, label: String) {
+                    self.icon = Image(systemName: iconSystemName)
+                    self.label = Text(label)
+                }
+            }
+
+            extension Chip where Icon == Never {
+                init(@ViewBuilder label: () -> Label) {
+                    self.icon = nil
+                    self.label = label()
+                }
+            }
+
+            extension Chip where Icon == Never, Label == Text {
+                init(label: LocalizedStringKey) {
+                    self.icon = nil
+                    self.label = Text(label)
+                }
+
+                @_disfavoredOverload
+                init(label: String) {
+                    self.icon = nil
+                    self.label = Text(label)
+                }
+            }
+            """,
+            macros: testMacros
+        )
+    }
+
 }

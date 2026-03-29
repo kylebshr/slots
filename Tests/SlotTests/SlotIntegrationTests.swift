@@ -20,7 +20,7 @@ struct Card<Title: View, Actions: View>: View {
 @Slots
 struct Row<Leading: View, Content: View, Trailing: View>: View {
     var isSelected: Bool
-    var leading: Leading?
+    @Slot(.image)    var leading: Leading?
     @Slot(.text)     var content: Content
     var trailing: Trailing?
     var body: some View { EmptyView() }
@@ -71,6 +71,10 @@ final class SlotIntegrationTests: XCTestCase {
         let _: Row<Image, Text, Text>           = Row(isSelected: false, leading: { Image(systemName: "star") }, content: { Text("hi") }, trailing: { Text("→") })
         // LocalizedStringKey content, generic leading + trailing
         let _: Row<Image, Text, Text>           = Row(isSelected: true, leading: { Image(systemName: "star") }, content: "hi", trailing: { Text("→") })
+        // image leading, LocalizedStringKey content, generic trailing
+        let _: Row<Image, Text, Text>           = Row(isSelected: false, leadingSystemName: "star", content: "hi", trailing: { Text("→") })
+        // image leading, LocalizedStringKey content, no trailing
+        let _: Row<Image, Text, Never>          = Row(isSelected: false, leadingSystemName: "star", content: "hi")
         // no leading, LocalizedStringKey content, generic trailing
         let _: Row<Never, Text, Text>           = Row(isSelected: false, content: "hi", trailing: { Text("→") })
         // no leading, LocalizedStringKey content, no trailing

@@ -25,6 +25,7 @@ public macro Slots() = #externalMacro(module: "SlotMacros", type: "SlotMacro")
 /// required on non-optional generics (`Label`) or when specifying options.
 ///
 /// - `.text` — add `init` variants accepting `LocalizedStringKey` and `String` (disfavored), both stored as `Text(...)`
+/// - `.image` — add an `init` variant accepting `{name}SystemName: String`, stored as `Image(systemName:)`
 @attached(peer)
 public macro Slot(_ options: SlotOption...) = #externalMacro(module: "SlotMacros", type: "SlotPropertyMacro")
 
@@ -33,4 +34,6 @@ public macro Slot(_ options: SlotOption...) = #externalMacro(module: "SlotMacros
 public struct SlotOption: Sendable {
     /// Generate `LocalizedStringKey` → `Text` and `@_disfavoredOverload` `String` → `Text` convenience inits for this slot.
     public static let text = SlotOption()
+    /// Generate `{name}SystemName: String` → `Image(systemName:)` convenience init for this slot.
+    public static let image = SlotOption()
 }
