@@ -1,6 +1,6 @@
+import SwiftDiagnostics
 import SwiftSyntax
 import SwiftSyntaxMacros
-import SwiftDiagnostics
 
 // MARK: - SlotMacro
 
@@ -19,11 +19,13 @@ public struct SlotMacro: MemberMacro, ExtensionMacro {
         let slots = try collectSlots(from: declaration)
         guard !slots.isEmpty else { return [] }
 
-        let params = (plain.map { p in p.defaultValue.map { "\(p.name): \(p.typeStr) = \($0)" } ?? "\(p.name): \(p.typeStr)" }
-                    + slots.map { "@ViewBuilder \($0.name): () -> \($0.genericParam)" })
+        let params =
+            (plain.map { p in p.defaultValue.map { "\(p.name): \(p.typeStr) = \($0)" } ?? "\(p.name): \(p.typeStr)" }
+            + slots.map { "@ViewBuilder \($0.name): () -> \($0.genericParam)" })
             .joined(separator: ", ")
-        let assignments = (plain.map { "self.\($0.name) = \($0.name)" }
-                         + slots.map { "self.\($0.name) = \($0.name)()" })
+        let assignments =
+            (plain.map { "self.\($0.name) = \($0.name)" }
+            + slots.map { "self.\($0.name) = \($0.name)()" })
             .joined(separator: "\n    ")
         let accessPrefix = access.map { "\($0) " } ?? ""
 
@@ -99,7 +101,7 @@ private func collectPlainProperties(from declaration: some DeclGroupSyntax) -> [
 
         return varDecl.bindings.compactMap { binding -> PlainProperty? in
             guard
-                binding.accessorBlock == nil,    // not computed
+                binding.accessorBlock == nil,  // not computed
                 let identifier = binding.pattern.as(IdentifierPatternSyntax.self),
                 let typeAnnotation = binding.typeAnnotation?.type,
                 // Not a generic type parameter (required slots) or optional generic (optional slots)
@@ -133,10 +135,10 @@ private struct SlotDescriptor {
 
 private enum SlotMode: Equatable {
     case generic  // caller passes any View
-    case text     // fix to Text, LocalizedStringKey param, preferred
-    case string   // fix to Text, String param, @_disfavoredOverload
-    case image    // fix to Image, {name}SystemName: String param
-    case empty    // fix to Never, parameter omitted (stores nil)
+    case text  // fix to Text, LocalizedStringKey param, preferred
+    case string  // fix to Text, String param, @_disfavoredOverload
+    case image  // fix to Image, {name}SystemName: String param
+    case empty  // fix to Never, parameter omitted (stores nil)
 }
 
 // MARK: - Init spec (one init inside an extension)
@@ -178,20 +180,26 @@ private func collectSlots(from declaration: some DeclGroupSyntax) throws -> [Slo
 
             // `Icon?` — always a slot, @Slot annotation optional
             if let inner = typeAnnotation.as(OptionalTypeSyntax.self)?
-                    .wrappedType.as(IdentifierTypeSyntax.self)?.name.text,
-               genericNames.contains(inner) {
+                .wrappedType.as(IdentifierTypeSyntax.self)?.name.text,
+                genericNames.contains(inner)
+            {
                 let options = slotAttr.map { parseSlotOptions(from: $0) } ?? ParsedOptions()
 
-                return SlotDescriptor(name: propertyName, genericParam: inner, isOptional: true, hasText: options.contains(.text), hasImage: options.contains(.image))
+                return SlotDescriptor(
+                    name: propertyName, genericParam: inner, isOptional: true, hasText: options.contains(.text),
+                    hasImage: options.contains(.image))
             }
 
             // `Icon` — slot only if @Slot annotated
             if let name = typeAnnotation.as(IdentifierTypeSyntax.self)?.name.text,
-               genericNames.contains(name) {
+                genericNames.contains(name)
+            {
                 guard slotAttr != nil else { return nil }
                 let options = parseSlotOptions(from: slotAttr!)
 
-                return SlotDescriptor(name: propertyName, genericParam: name, isOptional: false, hasText: options.contains(.text), hasImage: options.contains(.image))
+                return SlotDescriptor(
+                    name: propertyName, genericParam: name, isOptional: false, hasText: options.contains(.text),
+                    hasImage: options.contains(.image))
             }
 
             // @Slot on a non-generic type is an error
@@ -205,16 +213,16 @@ private func collectSlots(from declaration: some DeclGroupSyntax) throws -> [Slo
 
 private struct ParsedOptions: OptionSet {
     let rawValue: Int
-    static let text  = ParsedOptions(rawValue: 1 << 0)
+    static let text = ParsedOptions(rawValue: 1 << 0)
     static let image = ParsedOptions(rawValue: 1 << 1)
 }
 
 private func parseSlotOptions(from attr: AttributeSyntax) -> ParsedOptions {
     var result = ParsedOptions()
-    guard case let .argumentList(args) = attr.arguments else { return result }
+    guard case .argumentList(let args) = attr.arguments else { return result }
     for arg in args {
         switch arg.expression.as(MemberAccessExprSyntax.self)?.declName.baseName.text {
-        case "text":  result.insert(.text)
+        case "text": result.insert(.text)
         case "image": result.insert(.image)
         default: break
         }
@@ -227,7 +235,10 @@ private func parseSlotOptions(from attr: AttributeSyntax) -> ParsedOptions {
 private func allCombinations(for slots: [SlotDescriptor]) -> [[SlotMode]] {
     slots.reduce([[SlotMode]]()) { combos, slot in
         var modes: [SlotMode] = [.generic]
-        if slot.hasText  { modes.append(.text); modes.append(.string) }
+        if slot.hasText {
+            modes.append(.text)
+            modes.append(.string)
+        }
         if slot.hasImage { modes.append(.image) }
         if slot.isOptional { modes.append(.empty) }
 
@@ -246,7 +257,9 @@ private func extensionGroups(
     plain: [PlainProperty] = [],
     access: String? = nil
 ) -> [(whereClause: String, specs: [InitSpec])] {
-    let plainParams      = plain.map { p in p.defaultValue.map { "\(p.name): \(p.typeStr) = \($0)" } ?? "\(p.name): \(p.typeStr)" }
+    let plainParams = plain.map { p in
+        p.defaultValue.map { "\(p.name): \(p.typeStr) = \($0)" } ?? "\(p.name): \(p.typeStr)"
+    }
     let plainAssignments = plain.map { "self.\($0.name) = \($0.name)" }
 
     // Use an ordered structure to preserve natural combo order
@@ -309,10 +322,10 @@ private func buildExtension(
     let body = specs.map { formatInit($0) }.joined(separator: "\n\n")
 
     let source: DeclSyntax = """
-    extension \(type.trimmed) where \(raw: whereClause) {
-    \(raw: body)
-    }
-    """
+        extension \(type.trimmed) where \(raw: whereClause) {
+        \(raw: body)
+        }
+        """
     return source.as(ExtensionDeclSyntax.self)
 }
 
