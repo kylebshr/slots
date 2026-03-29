@@ -1,10 +1,4 @@
-//
-//  SlotOption.swift
-//  Slots
-//
-//  Created by Kyle Bashour on 3/29/26.
-//
-
+import SwiftUI
 
 public struct SlotOption: Sendable {
     /// Generate `LocalizedStringKey` → `Text` and `@_disfavoredOverload` `String` → `Text` convenience inits for this slot.

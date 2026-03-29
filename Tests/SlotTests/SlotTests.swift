@@ -1087,6 +1087,85 @@ final class SlotTests: XCTestCase {
         )
     }
 
+    // MARK: - Property wrapper tests
+
+    func testBindingProperty() {
+        let testMacros: [String: Macro.Type] = ["Slots": SlotMacro.self, "Slot": SlotPropertyMacro.self]
+        assertMacroExpansion(
+            """
+            @Slots
+            struct Toggle<Label: View>: View {
+                @Binding var isOn: Bool
+                @Slot(.text) var label: Label
+                var body: some View { EmptyView() }
+            }
+            """,
+            expandedSource: """
+                struct Toggle<Label: View>: View {
+                    @Binding var isOn: Bool
+                    var label: Label
+                    var body: some View { EmptyView() }
+
+                    init(isOn: Binding<Bool>, @ViewBuilder label: () -> Label) {
+                        self._isOn = isOn
+                        self.label = label()
+                    }
+                }
+
+                extension Toggle where Label == Text {
+                    init(isOn: Binding<Bool>, label: LocalizedStringKey) {
+                        self._isOn = isOn
+                        self.label = Text(label)
+                    }
+
+                    @_disfavoredOverload
+                    init(isOn: Binding<Bool>, label: String) {
+                        self._isOn = isOn
+                        self.label = Text(label)
+                    }
+                }
+                """,
+            macros: testMacros
+        )
+    }
+
+    func testStatePropertySkipped() {
+        let testMacros: [String: Macro.Type] = ["Slots": SlotMacro.self, "Slot": SlotPropertyMacro.self]
+        assertMacroExpansion(
+            """
+            @Slots
+            struct Counter<Label: View>: View {
+                @State var count: Int
+                @Slot(.text) var label: Label
+                var body: some View { EmptyView() }
+            }
+            """,
+            expandedSource: """
+                struct Counter<Label: View>: View {
+                    @State var count: Int
+                    var label: Label
+                    var body: some View { EmptyView() }
+
+                    init(@ViewBuilder label: () -> Label) {
+                        self.label = label()
+                    }
+                }
+
+                extension Counter where Label == Text {
+                    init(label: LocalizedStringKey) {
+                        self.label = Text(label)
+                    }
+
+                    @_disfavoredOverload
+                    init(label: String) {
+                        self.label = Text(label)
+                    }
+                }
+                """,
+            macros: testMacros
+        )
+    }
+
     // MARK: - Init limit test
 
     func testTooManyInitsEmitsError() {

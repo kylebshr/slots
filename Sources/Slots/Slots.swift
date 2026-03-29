@@ -18,12 +18,3 @@ import SwiftUI
 @attached(member, names: named(init))
 @attached(extension, names: named(init))
 public macro Slots() = #externalMacro(module: "SlotMacros", type: "SlotMacro")
-
-// MARK: - Options
-
-public struct SlotOption: Sendable {
-    /// Generate `LocalizedStringKey` → `Text` and `@_disfavoredOverload` `String` → `Text` convenience inits for this slot.
-    public static let text = SlotOption()
-    /// Generate `{name}SystemName: String` → `Image(systemName:)` convenience init for this slot.
-    public static let image = SlotOption()
-}

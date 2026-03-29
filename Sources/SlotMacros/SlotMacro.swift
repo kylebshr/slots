@@ -96,7 +96,16 @@ private struct PlainProperty {
     let isGenericView: Bool
     let isClosure: Bool
     let needsEscaping: Bool
+    let isBinding: Bool
 }
+
+/// Property wrappers that represent internal state and should be excluded from generated inits.
+private let skippedPropertyWrappers: Set<String> = [
+    "State", "StateObject", "ObservedObject", "Environment", "EnvironmentObject",
+    "FocusState", "FocusedValue", "FocusedBinding", "AppStorage", "SceneStorage",
+    "FetchRequest", "SectionedFetchRequest", "Namespace", "GestureState",
+    "ScaledMetric", "UIApplicationDelegateAdaptor", "NSApplicationDelegateAdaptor",
+]
 
 private func collectPlainProperties(from declaration: some DeclGroupSyntax) -> [PlainProperty] {
     guard let structDecl = declaration.as(StructDeclSyntax.self) else { return [] }
@@ -114,6 +123,19 @@ private func collectPlainProperties(from declaration: some DeclGroupSyntax) -> [
                     .as(IdentifierTypeSyntax.self)?.name.text == "Slot"
             })
         else { return [] }
+
+        // Detect property wrapper attributes
+        let wrapperName = varDecl.attributes.lazy.compactMap {
+            $0.as(AttributeSyntax.self)?.attributeName
+                .as(IdentifierTypeSyntax.self)?.name.text
+        }.first(where: { $0 == "Binding" || skippedPropertyWrappers.contains($0) })
+
+        // Skip internal-state property wrappers entirely
+        if let wrapper = wrapperName, skippedPropertyWrappers.contains(wrapper) {
+            return []
+        }
+
+        let isBinding = wrapperName == "Binding"
 
         return varDecl.bindings.compactMap { binding -> PlainProperty? in
             guard
@@ -136,19 +158,24 @@ private func collectPlainProperties(from declaration: some DeclGroupSyntax) -> [
                     defaultValue: nil,
                     isGenericView: true,
                     isClosure: false,
-                    needsEscaping: false
+                    needsEscaping: false,
+                    isBinding: false
                 )
             }
 
             let closure = isFunctionType(typeAnnotation)
             let optional = typeAnnotation.is(OptionalTypeSyntax.self)
+            let typeStr =
+                isBinding
+                ? "Binding<\(typeAnnotation.trimmedDescription)>" : typeAnnotation.trimmedDescription
             return PlainProperty(
                 name: identifier.identifier.text,
-                typeStr: typeAnnotation.trimmedDescription,
+                typeStr: typeStr,
                 defaultValue: binding.initializer?.value.trimmedDescription,
                 isGenericView: false,
                 isClosure: closure,
-                needsEscaping: closure && !optional
+                needsEscaping: closure && !optional,
+                isBinding: isBinding
             )
         }
     }
@@ -201,9 +228,10 @@ private func paramEntry(for p: PlainProperty) -> ParamEntry {
     let paramStr =
         p.defaultValue.map { "\(p.name): \(escapingPrefix)\(p.typeStr) = \($0)" }
         ?? "\(p.name): \(escapingPrefix)\(p.typeStr)"
+    let assignment = p.isBinding ? "self._\(p.name) = \(p.name)" : "self.\(p.name) = \(p.name)"
     return ParamEntry(
         param: paramStr,
-        assignment: "self.\(p.name) = \(p.name)",
+        assignment: assignment,
         tier: p.isClosure ? .closure : .value
     )
 }
