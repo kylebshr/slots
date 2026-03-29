@@ -850,6 +850,51 @@ final class SlotTests: XCTestCase {
         )
     }
 
+    func testOptionalPlainPropertyDefaultsToNil() {
+        let testMacros: [String: Macro.Type] = ["Slots": SlotMacro.self, "Slot": SlotPropertyMacro.self]
+        assertMacroExpansion(
+            """
+            @Slots
+            struct Section<Title: View, Content: View>: View {
+                var subtitle: String?
+                @Slot(.text) var title: Title
+                var content: Content
+                var body: some View { EmptyView() }
+            }
+            """,
+            expandedSource: """
+                struct Section<Title: View, Content: View>: View {
+                    var subtitle: String?
+                    var title: Title
+                    var content: Content
+                    var body: some View { EmptyView() }
+
+                    init(subtitle: String? = nil, @ViewBuilder content: () -> Content, @ViewBuilder title: () -> Title) {
+                        self.subtitle = subtitle
+                        self.content = content()
+                        self.title = title()
+                    }
+                }
+
+                extension Section where Title == Text {
+                    init(subtitle: String? = nil, title: LocalizedStringKey, @ViewBuilder content: () -> Content) {
+                        self.subtitle = subtitle
+                        self.title = Text(title)
+                        self.content = content()
+                    }
+
+                    @_disfavoredOverload
+                    init(subtitle: String? = nil, title: String, @ViewBuilder content: () -> Content) {
+                        self.subtitle = subtitle
+                        self.title = Text(title)
+                        self.content = content()
+                    }
+                }
+                """,
+            macros: testMacros
+        )
+    }
+
     // MARK: - Image slot tests
 
     func testSingleSlotImage() {

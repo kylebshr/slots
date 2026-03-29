@@ -168,10 +168,12 @@ private func collectPlainProperties(from declaration: some DeclGroupSyntax) -> [
             let typeStr =
                 isBinding
                 ? "Binding<\(typeAnnotation.trimmedDescription)>" : typeAnnotation.trimmedDescription
+            let defaultValue =
+                binding.initializer?.value.trimmedDescription ?? (optional ? "nil" : nil)
             return PlainProperty(
                 name: identifier.identifier.text,
                 typeStr: typeStr,
-                defaultValue: binding.initializer?.value.trimmedDescription,
+                defaultValue: defaultValue,
                 isGenericView: false,
                 isClosure: closure,
                 needsEscaping: closure && !optional,
