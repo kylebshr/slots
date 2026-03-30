@@ -33,7 +33,7 @@ let package = Package(
             ]
         ),
         .target(
-            name: "SlotsExamples",
+            name: "SlotExamples",
             dependencies: ["Slots"]
         ),
         .testTarget(

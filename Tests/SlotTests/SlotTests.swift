@@ -46,6 +46,40 @@ final class SlotTests: XCTestCase {
         )
     }
 
+    func testSingleSlotTextUnlabeled() {
+        assertMacroExpansion(
+            """
+            @Slots
+            struct Badge<Label: View>: View {
+                @Slot(.text.unlabeled) var label: Label
+                var body: some View { EmptyView() }
+            }
+            """,
+            expandedSource: """
+                struct Badge<Label: View>: View {
+                    var label: Label
+                    var body: some View { EmptyView() }
+
+                    init(@ViewBuilder label: () -> Label) {
+                        self.label = label()
+                    }
+                }
+
+                extension Badge where Label == Text {
+                    init(_ label: LocalizedStringKey) {
+                        self.label = Text(label)
+                    }
+
+                    @_disfavoredOverload
+                    init(_ label: String) {
+                        self.label = Text(label)
+                    }
+                }
+                """,
+            macros: testMacros
+        )
+    }
+
     func testSingleSlotOptional() {
         assertMacroExpansion(
             """

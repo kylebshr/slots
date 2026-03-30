@@ -261,6 +261,7 @@ private struct SlotDescriptor {
     let isOptional: Bool
     let hasText: Bool
     let hasSystemImage: Bool
+    let isUnlabeled: Bool
     let declarationIndex: Int
 }
 
@@ -331,7 +332,8 @@ private func collectSlots(
 
                 return SlotDescriptor(
                     name: propertyName, genericParam: inner, isOptional: true, hasText: options.contains(.text),
-                    hasSystemImage: options.contains(.systemImage), declarationIndex: memberIndex)
+                    hasSystemImage: options.contains(.systemImage), isUnlabeled: options.contains(.unlabeled),
+                    declarationIndex: memberIndex)
             }
 
             // `Icon` — slot only if @Slot annotated
@@ -343,7 +345,8 @@ private func collectSlots(
 
                 return SlotDescriptor(
                     name: propertyName, genericParam: name, isOptional: false, hasText: options.contains(.text),
-                    hasSystemImage: options.contains(.systemImage), declarationIndex: memberIndex)
+                    hasSystemImage: options.contains(.systemImage), isUnlabeled: options.contains(.unlabeled),
+                    declarationIndex: memberIndex)
             }
 
             // @Slot on a non-generic type is an error
@@ -362,13 +365,31 @@ private struct ParsedOptions: OptionSet {
     let rawValue: Int
     static let text = ParsedOptions(rawValue: 1 << 0)
     static let systemImage = ParsedOptions(rawValue: 1 << 1)
+    static let unlabeled = ParsedOptions(rawValue: 1 << 2)
 }
 
 private func parseSlotOptions(from attr: AttributeSyntax) -> ParsedOptions {
     var result = ParsedOptions()
     guard case .argumentList(let args) = attr.arguments else { return result }
     for arg in args {
-        switch arg.expression.as(MemberAccessExprSyntax.self)?.declName.baseName.text {
+        let expr = arg.expression
+
+        // Check for chained access like `.text.unlabeled`
+        if let outer = expr.as(MemberAccessExprSyntax.self),
+            outer.declName.baseName.text == "unlabeled",
+            let inner = outer.base?.as(MemberAccessExprSyntax.self)
+        {
+            switch inner.declName.baseName.text {
+            case "text":
+                result.insert(.text)
+                result.insert(.unlabeled)
+            default: break
+            }
+            continue
+        }
+
+        // Simple access like `.text` or `.systemImage`
+        switch expr.as(MemberAccessExprSyntax.self)?.declName.baseName.text {
         case "text": result.insert(.text)
         case "systemImage": result.insert(.systemImage)
         default: break
@@ -446,10 +467,11 @@ private func extensionGroups(
                     ))
             case .text:
                 constraints.append("\(slot.genericParam) == Text")
+                let labelPrefix = slot.isUnlabeled ? "_ " : ""
                 if slot.isOptional {
                     entries.append(
                         ParamEntry(
-                            param: "\(slot.name): LocalizedStringKey?",
+                            param: "\(labelPrefix)\(slot.name): LocalizedStringKey?",
                             assignment: "self.\(slot.name) = \(slot.name).map { Text($0) }",
                             tier: .value,
                             declarationIndex: slot.declarationIndex
@@ -457,7 +479,7 @@ private func extensionGroups(
                 } else {
                     entries.append(
                         ParamEntry(
-                            param: "\(slot.name): LocalizedStringKey",
+                            param: "\(labelPrefix)\(slot.name): LocalizedStringKey",
                             assignment: "self.\(slot.name) = Text(\(slot.name))",
                             tier: .value,
                             declarationIndex: slot.declarationIndex
@@ -465,10 +487,11 @@ private func extensionGroups(
                 }
             case .string:
                 constraints.append("\(slot.genericParam) == Text")
+                let labelPrefix = slot.isUnlabeled ? "_ " : ""
                 if slot.isOptional {
                     entries.append(
                         ParamEntry(
-                            param: "\(slot.name): String?",
+                            param: "\(labelPrefix)\(slot.name): String?",
                             assignment: "self.\(slot.name) = \(slot.name).map { Text($0) }",
                             tier: .value,
                             declarationIndex: slot.declarationIndex
@@ -476,7 +499,7 @@ private func extensionGroups(
                 } else {
                     entries.append(
                         ParamEntry(
-                            param: "\(slot.name): String",
+                            param: "\(labelPrefix)\(slot.name): String",
                             assignment: "self.\(slot.name) = Text(\(slot.name))",
                             tier: .value,
                             declarationIndex: slot.declarationIndex
