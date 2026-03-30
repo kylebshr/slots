@@ -120,13 +120,44 @@ The `@Slot` property annotation accepts one or more options:
 
 ### Optional slots
 
+A common pattern for optional views in SwiftUI is to accept `some View` and have callers pass `EmptyView()` when they don't want anything rendered:
+
+```swift
+// Caller is forced to explicitly say "nothing here"
+MyBadge(icon: EmptyView(), label: "New")
+```
+
+This works, but it loses information. Inside the component you might want to skip surrounding layout — padding, a divider, a spacer — when the icon is absent. With `EmptyView` you can't know at the type level whether the caller intentionally omitted the icon or just happened to pass an empty view. You'd have to reach for runtime type inspection (`Mirror`, `is EmptyView`) or `AnyView`, both of which are worse than having no slot at all.
+
+The better approach is to make the slot's type `Optional`. When the slot is absent, the type is constrained to `Never` — and because `Never` has no values, an `Optional<Never>` can only ever be `nil`. There's nothing to check at runtime; absence is encoded in the type itself.
+
+Inside the component body, this falls out naturally:
+
+```swift
+if let icon { icon }   // skipped entirely when Icon == Never
+```
+
+And because absence is a compile-time fact, you can write constrained extensions that are only available when the slot is missing — or, more usefully, require the slot to be present:
+
+```swift
+// Only available when there's no icon
+extension Badge where Icon == Never {
+    func withDefaultIcon() -> some View { ... }
+}
+```
+
 Declare a slot as optional by using `?` in the property type — no `@Slot` annotation needed:
 
 ```swift
 var icon: Icon?
 ```
 
-This automatically generates an init variant that omits the parameter entirely, storing `nil`. The absent slot type is constrained to `Never`.
+Slots generates an init variant that omits the parameter entirely and stores `nil`, constraining `Icon == Never` in the where clause of that extension. Call sites just leave the argument out:
+
+```swift
+Badge(label: "New")                                    // Icon == Never; icon is always nil
+Badge(label: "New") { Image(systemName: "star") }     // Icon == Image; icon is non-nil
+```
 
 ### Example
 
