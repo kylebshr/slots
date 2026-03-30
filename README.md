@@ -6,19 +6,59 @@ A Swift macro for building SwiftUI design system components with generic view sl
 
 ## The problem
 
-A well-designed SwiftUI component accepts generic `View` parameters for its customizable regions ("slots"), so callers can pass anything from a `Text` to a fully custom view. But offering sane defaults — like an init that takes a plain string — creates an exponential blowup of handwritten initializers as slot count grows.
-
-A two-slot component with one optional slot and one text-convenience slot already needs four inits. Three slots needs twelve. And every time you add a slot you have to update them all.
+SwiftUI's `Button` is a great example of a well-designed component. Its primary initializer accepts a `@ViewBuilder` closure for its label slot, so you can pass anything as the label:
 
 ```swift
-// Just two slots. Already four inits to write and maintain.
+Button(action: signIn) {
+    HStack {
+        Image(systemName: "arrow.right.circle")
+        Text("Sign In")
+    }
+}
+```
+
+But `Button` also works with a plain string:
+
+```swift
+Button("Sign In", action: signIn)
+```
+
+That convenience doesn't come for free. Under the hood, SwiftUI ships two extra initializers in constrained extensions — one for `LocalizedStringKey` (preferred) and one for `String` (disfavored), both pinning `Label == Text`:
+
+```swift
+// The generic init — lives on the struct itself
+init(action: @escaping () -> Void, @ViewBuilder label: () -> Label)
+
+// Convenience inits — live in a constrained extension
+extension Button where Label == Text {
+    init(_ titleKey: LocalizedStringKey, action: @escaping () -> Void)
+
+    @_disfavoredOverload
+    init<S: StringProtocol>(_ title: S, action: @escaping () -> Void)
+}
+```
+
+That's manageable for a single slot. But real design-system components often have more — a card with a title, a subtitle, and an actions region; a row with a leading icon and a trailing accessory. Every slot that should accept a plain string needs its own `where` clause, and every optional slot needs its own omission variant. The combinations multiply fast.
+
+A two-slot component with one optional slot and one text-convenience slot already needs four inits:
+
+```swift
 struct Card<Title: View, Actions: View>: View {
+    // On the struct
     init(@ViewBuilder title: () -> Title, @ViewBuilder actions: () -> Actions) { ... }
+
+    // extension Card where Title == Text
     init(title: LocalizedStringKey, @ViewBuilder actions: () -> Actions) { ... }
+
+    // extension Card where Actions == Never
     init(@ViewBuilder title: () -> Title) where Actions == Never { ... }
+
+    // extension Card where Title == Text, Actions == Never
     init(title: LocalizedStringKey) where Actions == Never { ... }
 }
 ```
+
+Add a third slot and you're writing twelve inits. Add a fourth and it's more than thirty. Every new slot means updating every existing combination. It's mechanical, error-prone, and no fun.
 
 ## The solution
 
@@ -80,13 +120,44 @@ The `@Slot` property annotation accepts one or more options:
 
 ### Optional slots
 
+A common pattern for optional views in SwiftUI is to accept `some View` and have callers pass `EmptyView()` when they don't want anything rendered:
+
+```swift
+// Caller is forced to explicitly say "nothing here"
+MyBadge(icon: EmptyView(), label: "New")
+```
+
+This works, but it loses information. Inside the component you might want to skip surrounding layout — padding, a divider, a spacer — when the icon is absent. With `EmptyView` you can't know at the type level whether the caller intentionally omitted the icon or just happened to pass an empty view. You'd have to reach for runtime type inspection (`Mirror`, `is EmptyView`) or `AnyView`, both of which are worse than having no slot at all.
+
+The better approach is to make the slot's type `Optional`. When the slot is absent, the type is constrained to `Never` — and because `Never` has no values, an `Optional<Never>` can only ever be `nil`. There's nothing to check at runtime; absence is encoded in the type itself.
+
+Inside the component body, this falls out naturally:
+
+```swift
+if let icon { icon }   // skipped entirely when Icon == Never
+```
+
+And because absence is a compile-time fact, you can write constrained extensions that are only available when the slot is missing — or, more usefully, require the slot to be present:
+
+```swift
+// Only available when there's no icon
+extension Badge where Icon == Never {
+    func withDefaultIcon() -> some View { ... }
+}
+```
+
 Declare a slot as optional by using `?` in the property type — no `@Slot` annotation needed:
 
 ```swift
 var icon: Icon?
 ```
 
-This automatically generates an init variant that omits the parameter entirely, storing `nil`. The absent slot type is constrained to `Never`.
+Slots generates an init variant that omits the parameter entirely and stores `nil`, constraining `Icon == Never` in the where clause of that extension. Call sites just leave the argument out:
+
+```swift
+Badge(label: "New")                                    // Icon == Never; icon is always nil
+Badge(label: "New") { Image(systemName: "star") }     // Icon == Image; icon is non-nil
+```
 
 ### Example
 
