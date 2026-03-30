@@ -62,17 +62,19 @@ Add a third slot and you're writing twelve inits. Add a fourth and it's more tha
 
 ## The solution
 
-Annotate your component with `@Slots`. Optional generic properties are automatically recognized as slots; use `@Slot` only when you need options like `.text`. The macro generates every init permutation for you — fully type-safe, using constrained extensions with no casts.
+Annotate your component with `@Slots`. Every generic `View` property is automatically a slot — no per-property annotation needed. The macro picks them all up and generates a `@ViewBuilder` init parameter for each one. Mark a slot optional with `?` and the omission variants are generated too.
+
+The `@Slot` annotation is entirely optional. You only need it when you want convenience inits that accept a `String` or system image name rather than a `@ViewBuilder` closure — the same thing SwiftUI does for `Button`'s label.
 
 ```swift
 import Slots
 
 @Slots
 struct Card<Title: View, Actions: View>: View {
-    @Slot(.text)
+    @Slot(.text)   // optional: adds LocalizedStringKey / String convenience inits
     var title: Title
 
-    var actions: Actions?
+    var actions: Actions?   // optional slot — no annotation needed
 
     var body: some View { ... }
 }
@@ -109,9 +111,13 @@ Card { headerView }                            // custom view, no actions
 
 ---
 
-## Slot options
+## The `@Slot` annotation
 
-The `@Slot` property annotation accepts one or more options:
+You don't need `@Slot` to define a slot. Any generic `View` property — required or optional — is a slot automatically, and `@Slots` generates the corresponding `@ViewBuilder` init parameters without it.
+
+`@Slot` is purely additive: it attaches convenience options to a slot, asking the macro to also generate inits that accept a plain value (a string, a system image name) and construct the view internally. Without any options it has no effect.
+
+The available options are:
 
 | Option | Effect |
 |---|---|
