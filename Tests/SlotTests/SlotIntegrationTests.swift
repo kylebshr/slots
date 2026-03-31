@@ -2,7 +2,31 @@ import Slots
 import SwiftUI
 import XCTest
 
+// MARK: - Resolver
+
+enum Priority: String, Sendable { case low, medium, high }
+
+struct PriorityBadge: View {
+    let priority: Priority
+    var body: some View { Text(priority.rawValue) }
+}
+
+enum PriorityResolver: SlotResolver {
+    typealias Input = Priority
+    typealias Output = PriorityBadge
+    static func resolve(_ input: Priority) -> PriorityBadge {
+        PriorityBadge(priority: input)
+    }
+}
+
 // MARK: - Test components
+
+@Slots
+struct TaskRow<Title: View, Badge: View>: View {
+    @Slot(.text) var title: Title
+    @Slot(PriorityResolver.self) var badge: Badge?
+    var body: some View { EmptyView() }
+}
 
 @Slots
 struct Badge<Label: View>: View {
@@ -33,6 +57,25 @@ struct Row<Leading: View, Content: View, Trailing: View>: View {
 
 @MainActor
 final class SlotIntegrationTests: XCTestCase {
+
+    // MARK: TaskRow — resolver slot (optional)
+
+    func testTaskRowResolver() {
+        // resolver input: Priority → PriorityBadge
+        let _: TaskRow<Text, PriorityBadge> = TaskRow(title: "Buy groceries", badge: .high)
+        // generic badge slot
+        let _: TaskRow<Text, Text> = TaskRow(title: "Meeting") { Text("Important") }
+        // no badge → Badge == Never
+        let _: TaskRow<Text, Never> = TaskRow(title: "No priority")
+        // String title (disfavored), resolver badge
+        let _: TaskRow<Text, PriorityBadge> = TaskRow(title: "Task" as String, badge: .low)
+        // both generic
+        let _: TaskRow<Text, Text> = TaskRow {
+            Text("Party")
+        } badge: {
+            Text("Custom")
+        }
+    }
 
     // MARK: Badge — single slot, all option combos
 
