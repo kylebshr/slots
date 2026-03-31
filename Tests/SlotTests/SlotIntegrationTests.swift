@@ -1,8 +1,34 @@
+import Foundation
 import Slots
 import SwiftUI
 import XCTest
 
+// MARK: - Resolvers
+
+struct DateResolver: SlotResolver {
+    typealias Input = Date
+    typealias Output = Text
+    static func resolve(_ input: Date) -> Text {
+        Text(input, style: .date)
+    }
+}
+
 // MARK: - Test components
+
+@Slots
+struct EventRow<Title: View, When: View>: View {
+    @Slot(.text) var title: Title
+    @Slot(DateResolver.self) var when_: When
+    var body: some View { EmptyView() }
+}
+
+@Slots
+struct EventCard<Title: View, When: View, Footer: View>: View {
+    @Slot(.text) var title: Title
+    @Slot(DateResolver.self) var when_: When
+    var footer: Footer?
+    var body: some View { EmptyView() }
+}
 
 @Slots
 struct Badge<Label: View>: View {
@@ -33,6 +59,34 @@ struct Row<Leading: View, Content: View, Trailing: View>: View {
 
 @MainActor
 final class SlotIntegrationTests: XCTestCase {
+
+    // MARK: EventRow — resolver slot
+
+    func testEventRowResolver() {
+        // resolver input: Date → Text
+        let _: EventRow<Text, Text> = EventRow(title: "Party", when_: Date())
+        // generic when_ slot
+        let _: EventRow<Text, Text> = EventRow(title: "Party") { Text("Tomorrow") }
+        // String title (disfavored), resolver when_
+        let _: EventRow<Text, Text> = EventRow(title: "Party" as String, when_: Date())
+        // both generic
+        let _: EventRow<Text, Text> = EventRow {
+            Text("Party")
+        } when_: {
+            Text("Tomorrow")
+        }
+    }
+
+    // MARK: EventCard — resolver + optional slot
+
+    func testEventCardResolver() {
+        // resolver when_, text title, generic footer
+        let _: EventCard<Text, Text, Text> = EventCard(title: "Party", when_: Date()) { Text("See you!") }
+        // resolver when_, text title, no footer
+        let _: EventCard<Text, Text, Never> = EventCard(title: "Party", when_: Date())
+        // generic when_, text title, no footer
+        let _: EventCard<Text, Text, Never> = EventCard(title: "Party") { Text("Tomorrow") }
+    }
 
     // MARK: Badge — single slot, all option combos
 

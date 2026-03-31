@@ -1233,6 +1233,133 @@ final class SlotTests: XCTestCase {
         )
     }
 
+    // MARK: - Resolver tests
+
+    func testResolverOnRequiredSlot() {
+        assertMacroExpansion(
+            """
+            @Slots
+            struct EventRow<Label: View>: View {
+                @Slot(SomeResolver.self) var label: Label
+                var body: some View { EmptyView() }
+            }
+            """,
+            expandedSource: """
+                struct EventRow<Label: View>: View {
+                    var label: Label
+                    var body: some View { EmptyView() }
+
+                    init(@ViewBuilder label: () -> Label) {
+                        self.label = label()
+                    }
+                }
+
+                extension EventRow where Label == SomeResolver.Output {
+                    init(label: SomeResolver.Input) {
+                        self.label = SomeResolver.resolve(label)
+                    }
+                }
+                """,
+            macros: testMacros
+        )
+    }
+
+    func testResolverOnOptionalSlot() {
+        assertMacroExpansion(
+            """
+            @Slots
+            struct EventRow<Icon: View>: View {
+                @Slot(SomeResolver.self) var icon: Icon?
+                var body: some View { EmptyView() }
+            }
+            """,
+            expandedSource: """
+                struct EventRow<Icon: View>: View {
+                    var icon: Icon?
+                    var body: some View { EmptyView() }
+
+                    init(@ViewBuilder icon: () -> Icon) {
+                        self.icon = Optional(icon())
+                    }
+                }
+
+                extension EventRow where Icon == SomeResolver.Output {
+                    init(icon: SomeResolver.Input?) {
+                        self.icon = icon.map {
+                            SomeResolver.resolve($0)
+                        }
+                    }
+                }
+
+                extension EventRow where Icon == Never {
+                    init() {
+                        self.icon = nil
+                    }
+                }
+                """,
+            macros: testMacros
+        )
+    }
+
+    func testResolverWithTextOnOtherSlot() {
+        assertMacroExpansion(
+            """
+            @Slots
+            struct EventCard<Title: View, When: View>: View {
+                @Slot(.text) var title: Title
+                @Slot(DateResolver.self) var when_: When
+                var body: some View { EmptyView() }
+            }
+            """,
+            expandedSource: """
+                struct EventCard<Title: View, When: View>: View {
+                    var title: Title
+                    var when_: When
+                    var body: some View { EmptyView() }
+
+                    init(@ViewBuilder title: () -> Title, @ViewBuilder when_: () -> When) {
+                        self.title = title()
+                        self.when_ = when_()
+                    }
+                }
+
+                extension EventCard where When == DateResolver.Output {
+                    init(when_: DateResolver.Input, @ViewBuilder title: () -> Title) {
+                        self.when_ = DateResolver.resolve(when_)
+                        self.title = title()
+                    }
+                }
+
+                extension EventCard where Title == Text {
+                    init(title: LocalizedStringKey, @ViewBuilder when_: () -> When) {
+                        self.title = Text(title)
+                        self.when_ = when_()
+                    }
+
+                    @_disfavoredOverload
+                    init(title: String, @ViewBuilder when_: () -> When) {
+                        self.title = Text(title)
+                        self.when_ = when_()
+                    }
+                }
+
+                extension EventCard where Title == Text, When == DateResolver.Output {
+                    init(title: LocalizedStringKey, when_: DateResolver.Input) {
+                        self.title = Text(title)
+                        self.when_ = DateResolver.resolve(when_)
+                    }
+
+                    @_disfavoredOverload
+                    init(title: String, when_: DateResolver.Input) {
+                        self.title = Text(title)
+                        self.when_ = DateResolver.resolve(when_)
+                    }
+                }
+                """,
+            macros: testMacros
+        )
+    }
+
     // MARK: - Init limit test
 
     func testTooManyInitsEmitsError() {
