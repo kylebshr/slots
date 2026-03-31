@@ -1283,4 +1283,169 @@ final class SlotTests: XCTestCase {
         )
     }
 
+    // MARK: - Custom slot option tests
+
+    func testCustomSlotOption() {
+        assertMacroExpansion(
+            """
+            @Slots
+            struct Row<Icon: View, Label: View>: View {
+                @Slot(.custom(IconResolver.self)) var icon: Icon
+                @Slot(.text) var label: Label
+                var body: some View { EmptyView() }
+            }
+            """,
+            expandedSource: """
+                struct Row<Icon: View, Label: View>: View {
+                    var icon: Icon
+                    var label: Label
+                    var body: some View { EmptyView() }
+
+                    init(@ViewBuilder icon: () -> Icon, @ViewBuilder label: () -> Label) {
+                        self.icon = icon()
+                        self.label = label()
+                    }
+                }
+
+                extension Row where Label == Text {
+                    init(label: LocalizedStringKey, @ViewBuilder icon: () -> Icon) {
+                        self.label = Text(label)
+                        self.icon = icon()
+                    }
+
+                    @_disfavoredOverload
+                    init(label: String, @ViewBuilder icon: () -> Icon) {
+                        self.label = Text(label)
+                        self.icon = icon()
+                    }
+                }
+
+                extension Row where Icon == IconResolver.Output {
+                    init(icon: IconResolver.Input, @ViewBuilder label: () -> Label) {
+                        self.icon = IconResolver.makeView(icon)
+                        self.label = label()
+                    }
+                }
+
+                extension Row where Icon == IconResolver.Output, Label == Text {
+                    init(icon: IconResolver.Input, label: LocalizedStringKey) {
+                        self.icon = IconResolver.makeView(icon)
+                        self.label = Text(label)
+                    }
+
+                    @_disfavoredOverload
+                    init(icon: IconResolver.Input, label: String) {
+                        self.icon = IconResolver.makeView(icon)
+                        self.label = Text(label)
+                    }
+                }
+                """,
+            macros: testMacros
+        )
+    }
+
+    func testCustomSlotOptionOptional() {
+        assertMacroExpansion(
+            """
+            @Slots
+            struct Row<Icon: View>: View {
+                @Slot(.custom(IconResolver.self)) var icon: Icon?
+                var body: some View { EmptyView() }
+            }
+            """,
+            expandedSource: """
+                struct Row<Icon: View>: View {
+                    var icon: Icon?
+                    var body: some View { EmptyView() }
+
+                    init(@ViewBuilder icon: () -> Icon) {
+                        self.icon = Optional(icon())
+                    }
+                }
+
+                extension Row where Icon == IconResolver.Output {
+                    init(icon: IconResolver.Input) {
+                        self.icon = Optional(IconResolver.makeView(icon))
+                    }
+                }
+
+                extension Row where Icon == Never {
+                    init() {
+                        self.icon = nil
+                    }
+                }
+                """,
+            macros: testMacros
+        )
+    }
+
+    func testCustomSlotOptionUnlabeled() {
+        assertMacroExpansion(
+            """
+            @Slots
+            struct Row<Icon: View>: View {
+                @Slot(.custom(IconResolver.self).unlabeled) var icon: Icon
+                var body: some View { EmptyView() }
+            }
+            """,
+            expandedSource: """
+                struct Row<Icon: View>: View {
+                    var icon: Icon
+                    var body: some View { EmptyView() }
+
+                    init(@ViewBuilder icon: () -> Icon) {
+                        self.icon = icon()
+                    }
+                }
+
+                extension Row where Icon == IconResolver.Output {
+                    init(_ icon: IconResolver.Input) {
+                        self.icon = IconResolver.makeView(icon)
+                    }
+                }
+                """,
+            macros: testMacros
+        )
+    }
+
+    func testCustomSlotOptionComposesWithBuiltIn() {
+        assertMacroExpansion(
+            """
+            @Slots
+            struct Row<Label: View>: View {
+                @Slot(.text, .custom(IconResolver.self)) var label: Label
+                var body: some View { EmptyView() }
+            }
+            """,
+            expandedSource: """
+                struct Row<Label: View>: View {
+                    var label: Label
+                    var body: some View { EmptyView() }
+
+                    init(@ViewBuilder label: () -> Label) {
+                        self.label = label()
+                    }
+                }
+
+                extension Row where Label == Text {
+                    init(label: LocalizedStringKey) {
+                        self.label = Text(label)
+                    }
+
+                    @_disfavoredOverload
+                    init(label: String) {
+                        self.label = Text(label)
+                    }
+                }
+
+                extension Row where Label == IconResolver.Output {
+                    init(label: IconResolver.Input) {
+                        self.label = IconResolver.makeView(label)
+                    }
+                }
+                """,
+            macros: testMacros
+        )
+    }
+
 }

@@ -33,6 +33,14 @@ struct Examples_Previews: PreviewProvider {
                 ActionButton("Save", action: {})
                 ActionButton(action: {}) { Text("Custom Label").bold() }
 
+                // TaskRow examples — uses custom .priority slot option
+                TaskRow(title: "Buy groceries", badge: .high)
+                TaskRow(title: "Read article", badge: .low)
+                TaskRow(title: "No priority")
+                TaskRow(title: "Custom badge") {
+                    Image(systemName: "star.fill").foregroundStyle(.yellow)
+                }
+
                 // ToolbarRow examples
                 ToolbarRow(title: "Inbox")
                 ToolbarRow(

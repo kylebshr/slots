@@ -262,6 +262,7 @@ private struct SlotDescriptor {
     let hasText: Bool
     let hasSystemImage: Bool
     let isUnlabeled: Bool
+    let customOptions: [CustomSlotOption]
     let declarationIndex: Int
 }
 
@@ -273,6 +274,7 @@ private enum SlotMode: Equatable {
     case string  // fix to Text, String param, @_disfavoredOverload
     case systemImage  // fix to Image, {name}SystemName: String param
     case empty  // fix to Never, parameter omitted (stores nil)
+    case custom(String)  // fix to resolver output, resolver input param (stores resolver type name)
 }
 
 // MARK: - Init spec (one init inside an extension)
@@ -328,12 +330,14 @@ private func collectSlots(
                 .wrappedType.as(IdentifierTypeSyntax.self)?.name.text,
                 genericNames.contains(inner)
             {
-                let options = slotAttr.map { parseSlotOptions(from: $0) } ?? ParsedOptions()
+                let options = slotAttr.map { parseSlotOptions(from: $0) } ?? SlotOptionsResult()
 
                 return SlotDescriptor(
-                    name: propertyName, genericParam: inner, isOptional: true, hasText: options.contains(.text),
-                    hasSystemImage: options.contains(.systemImage), isUnlabeled: options.contains(.unlabeled),
-                    declarationIndex: memberIndex)
+                    name: propertyName, genericParam: inner, isOptional: true,
+                    hasText: options.parsed.contains(.text),
+                    hasSystemImage: options.parsed.contains(.systemImage),
+                    isUnlabeled: options.parsed.contains(.unlabeled),
+                    customOptions: options.customOptions, declarationIndex: memberIndex)
             }
 
             // `Icon` — slot only if @Slot annotated
@@ -344,9 +348,11 @@ private func collectSlots(
                 let options = parseSlotOptions(from: slotAttr!)
 
                 return SlotDescriptor(
-                    name: propertyName, genericParam: name, isOptional: false, hasText: options.contains(.text),
-                    hasSystemImage: options.contains(.systemImage), isUnlabeled: options.contains(.unlabeled),
-                    declarationIndex: memberIndex)
+                    name: propertyName, genericParam: name, isOptional: false,
+                    hasText: options.parsed.contains(.text),
+                    hasSystemImage: options.parsed.contains(.systemImage),
+                    isUnlabeled: options.parsed.contains(.unlabeled),
+                    customOptions: options.customOptions, declarationIndex: memberIndex)
             }
 
             // @Slot on a non-generic type is an error
@@ -368,34 +374,71 @@ private struct ParsedOptions: OptionSet {
     static let unlabeled = ParsedOptions(rawValue: 1 << 2)
 }
 
-private func parseSlotOptions(from attr: AttributeSyntax) -> ParsedOptions {
-    var result = ParsedOptions()
+/// A custom slot option parsed from `@Slot(.custom(Resolver.self))`.
+private struct CustomSlotOption: Equatable {
+    let resolverType: String
+    let isUnlabeled: Bool
+}
+
+private struct SlotOptionsResult {
+    var parsed: ParsedOptions = ParsedOptions()
+    var customOptions: [CustomSlotOption] = []
+}
+
+private func parseSlotOptions(from attr: AttributeSyntax) -> SlotOptionsResult {
+    var result = SlotOptionsResult()
     guard case .argumentList(let args) = attr.arguments else { return result }
     for arg in args {
         let expr = arg.expression
 
-        // Check for chained access like `.text.unlabeled`
-        if let outer = expr.as(MemberAccessExprSyntax.self),
-            outer.declName.baseName.text == "unlabeled",
-            let inner = outer.base?.as(MemberAccessExprSyntax.self)
+        // Check for chained access like .text.unlabeled or .custom(R.self).unlabeled
+        if let memberAccess = expr.as(MemberAccessExprSyntax.self),
+            memberAccess.declName.baseName.text == "unlabeled"
         {
-            switch inner.declName.baseName.text {
-            case "text":
-                result.insert(.text)
-                result.insert(.unlabeled)
+            if let base = memberAccess.base?.as(MemberAccessExprSyntax.self),
+                base.declName.baseName.text == "text"
+            {
+                result.parsed.insert(.text)
+                result.parsed.insert(.unlabeled)
+            } else if let call = memberAccess.base?.as(FunctionCallExprSyntax.self),
+                let resolverType = parseCustomCall(call)
+            {
+                result.customOptions.append(CustomSlotOption(resolverType: resolverType, isUnlabeled: true))
+            }
+            continue
+        }
+
+        // Simple member access: .text, .systemImage
+        if let memberAccess = expr.as(MemberAccessExprSyntax.self) {
+            switch memberAccess.declName.baseName.text {
+            case "text": result.parsed.insert(.text)
+            case "systemImage": result.parsed.insert(.systemImage)
             default: break
             }
             continue
         }
 
-        // Simple access like `.text` or `.systemImage`
-        switch expr.as(MemberAccessExprSyntax.self)?.declName.baseName.text {
-        case "text": result.insert(.text)
-        case "systemImage": result.insert(.systemImage)
-        default: break
+        // Function call: .custom(Resolver.self)
+        if let call = expr.as(FunctionCallExprSyntax.self),
+            let resolverType = parseCustomCall(call)
+        {
+            result.customOptions.append(CustomSlotOption(resolverType: resolverType, isUnlabeled: false))
         }
     }
     return result
+}
+
+/// Parse `.custom(ResolverType.self)` and return the resolver type name.
+private func parseCustomCall(_ call: FunctionCallExprSyntax) -> String? {
+    guard
+        let callee = call.calledExpression.as(MemberAccessExprSyntax.self),
+        callee.declName.baseName.text == "custom",
+        let firstArg = call.arguments.first,
+        let metatype = firstArg.expression.as(MemberAccessExprSyntax.self),
+        metatype.declName.baseName.text == "self",
+        let typeExpr = metatype.base
+    else { return nil }
+    return typeExpr.trimmedDescription
 }
 
 // MARK: - Init count limit
@@ -407,6 +450,7 @@ private func initCombinationCount(for slots: [SlotDescriptor]) -> Int {
         var modes = 1  // generic
         if slot.hasText { modes += 2 }  // text + string
         if slot.hasSystemImage { modes += 1 }
+        modes += slot.customOptions.count
         if slot.isOptional { modes += 1 }  // empty
         return count * modes
     }
@@ -422,6 +466,9 @@ private func allCombinations(for slots: [SlotDescriptor]) -> [[SlotMode]] {
             modes.append(.string)
         }
         if slot.hasSystemImage { modes.append(.systemImage) }
+        for custom in slot.customOptions {
+            modes.append(.custom(custom.resolverType))
+        }
         if slot.isOptional { modes.append(.empty) }
 
         guard !combos.isEmpty else { return modes.map { [$0] } }
@@ -522,6 +569,30 @@ private func extensionGroups(
                         ParamEntry(
                             param: "\(paramName): String",
                             assignment: "self.\(slot.name) = Image(systemName: \(paramName))",
+                            tier: .value,
+                            declarationIndex: slot.declarationIndex
+                        ))
+                }
+            case .custom(let resolverType):
+                constraints.append("\(slot.genericParam) == \(resolverType).Output")
+                let isUnlabeled =
+                    slot.customOptions.first(where: { $0.resolverType == resolverType })?.isUnlabeled
+                    ?? false
+                let paramLabel = isUnlabeled ? "_ \(slot.name)" : "\(slot.name)"
+                if slot.isOptional {
+                    entries.append(
+                        ParamEntry(
+                            param: "\(paramLabel): \(resolverType).Input",
+                            assignment:
+                                "self.\(slot.name) = Optional(\(resolverType).makeView(\(slot.name)))",
+                            tier: .value,
+                            declarationIndex: slot.declarationIndex
+                        ))
+                } else {
+                    entries.append(
+                        ParamEntry(
+                            param: "\(paramLabel): \(resolverType).Input",
+                            assignment: "self.\(slot.name) = \(resolverType).makeView(\(slot.name))",
                             tier: .value,
                             declarationIndex: slot.declarationIndex
                         ))
