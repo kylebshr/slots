@@ -29,6 +29,9 @@ struct Examples_Previews: PreviewProvider {
                         Button("Refresh") {}
                     })
 
+                EmptyViewDemo(iconSystemName: "tray", title: "Icon")
+                EmptyViewDemo(title: "No icon")
+
                 // TaskRow examples — uses custom resolver slot with .unlabeled
                 TaskRow(title: "Buy groceries", .high)
                 TaskRow(title: "Read article", .low)
