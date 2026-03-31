@@ -1,32 +1,30 @@
-import Foundation
 import Slots
 import SwiftUI
 import XCTest
 
-// MARK: - Resolvers
+// MARK: - Resolver
 
-struct DateResolver: SlotResolver {
-    typealias Input = Date
-    typealias Output = Text
-    static func resolve(_ input: Date) -> Text {
-        Text(input, style: .date)
+enum Priority: String, Sendable { case low, medium, high }
+
+struct PriorityBadge: View {
+    let priority: Priority
+    var body: some View { Text(priority.rawValue) }
+}
+
+enum PriorityResolver: SlotResolver {
+    typealias Input = Priority
+    typealias Output = PriorityBadge
+    static func resolve(_ input: Priority) -> PriorityBadge {
+        PriorityBadge(priority: input)
     }
 }
 
 // MARK: - Test components
 
 @Slots
-struct EventRow<Title: View, When: View>: View {
+struct TaskRow<Title: View, Badge: View>: View {
     @Slot(.text) var title: Title
-    @Slot(DateResolver.self) var when_: When
-    var body: some View { EmptyView() }
-}
-
-@Slots
-struct EventCard<Title: View, When: View, Footer: View>: View {
-    @Slot(.text) var title: Title
-    @Slot(DateResolver.self) var when_: When
-    var footer: Footer?
+    @Slot(PriorityResolver.self) var badge: Badge?
     var body: some View { EmptyView() }
 }
 
@@ -60,32 +58,23 @@ struct Row<Leading: View, Content: View, Trailing: View>: View {
 @MainActor
 final class SlotIntegrationTests: XCTestCase {
 
-    // MARK: EventRow — resolver slot
+    // MARK: TaskRow — resolver slot (optional)
 
-    func testEventRowResolver() {
-        // resolver input: Date → Text
-        let _: EventRow<Text, Text> = EventRow(title: "Party", when_: Date())
-        // generic when_ slot
-        let _: EventRow<Text, Text> = EventRow(title: "Party") { Text("Tomorrow") }
-        // String title (disfavored), resolver when_
-        let _: EventRow<Text, Text> = EventRow(title: "Party" as String, when_: Date())
+    func testTaskRowResolver() {
+        // resolver input: Priority → PriorityBadge
+        let _: TaskRow<Text, PriorityBadge> = TaskRow(title: "Buy groceries", badge: .high)
+        // generic badge slot
+        let _: TaskRow<Text, Text> = TaskRow(title: "Meeting") { Text("Important") }
+        // no badge → Badge == Never
+        let _: TaskRow<Text, Never> = TaskRow(title: "No priority")
+        // String title (disfavored), resolver badge
+        let _: TaskRow<Text, PriorityBadge> = TaskRow(title: "Task" as String, badge: .low)
         // both generic
-        let _: EventRow<Text, Text> = EventRow {
+        let _: TaskRow<Text, Text> = TaskRow {
             Text("Party")
-        } when_: {
-            Text("Tomorrow")
+        } badge: {
+            Text("Custom")
         }
-    }
-
-    // MARK: EventCard — resolver + optional slot
-
-    func testEventCardResolver() {
-        // resolver when_, text title, generic footer
-        let _: EventCard<Text, Text, Text> = EventCard(title: "Party", when_: Date()) { Text("See you!") }
-        // resolver when_, text title, no footer
-        let _: EventCard<Text, Text, Never> = EventCard(title: "Party", when_: Date())
-        // generic when_, text title, no footer
-        let _: EventCard<Text, Text, Never> = EventCard(title: "Party") { Text("Tomorrow") }
     }
 
     // MARK: Badge — single slot, all option combos

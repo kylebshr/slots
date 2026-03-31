@@ -29,6 +29,14 @@ struct Examples_Previews: PreviewProvider {
                         Button("Refresh") {}
                     })
 
+                // TaskRow examples — uses custom resolver slot with .unlabeled
+                TaskRow(title: "Buy groceries", .high)
+                TaskRow(title: "Read article", .low)
+                TaskRow(title: "No priority")
+                TaskRow(title: "Custom badge") {
+                    Image(systemName: "star.fill").foregroundStyle(.yellow)
+                }
+
                 // ActionButton examples — uses .unlabeled so no label: prefix
                 ActionButton("Save", action: {})
                 ActionButton(action: {}) { Text("Custom Label").bold() }

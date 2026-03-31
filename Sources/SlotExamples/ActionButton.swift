@@ -3,7 +3,7 @@ import SwiftUI
 
 @Slots public struct ActionButton<Label: View>: View {
     var action: () -> Void
-    @Slot(.text.unlabeled) var label: Label
+    @Slot(.text, .unlabeled) var label: Label
 
     public var body: some View {
         Button(action: action) {

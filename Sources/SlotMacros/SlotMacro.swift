@@ -262,7 +262,7 @@ private struct SlotDescriptor {
     let hasText: Bool
     let hasSystemImage: Bool
     let isUnlabeled: Bool
-    let resolvers: [String]
+    let resolvers: [ResolverOption]
     let declarationIndex: Int
 }
 
@@ -381,9 +381,14 @@ private struct OptionFlags: OptionSet {
     static let unlabeled = OptionFlags(rawValue: 1 << 2)
 }
 
+private struct ResolverOption: Equatable {
+    let typeName: String
+    let isUnlabeled: Bool
+}
+
 private struct ParsedOptions {
     var flags: OptionFlags = []
-    var resolvers: [String] = []
+    var resolvers: [ResolverOption] = []
 
     mutating func merge(_ other: ParsedOptions) {
         flags.formUnion(other.flags)
@@ -394,6 +399,9 @@ private struct ParsedOptions {
 private func parseSlotOptions(from attr: AttributeSyntax) -> ParsedOptions {
     var result = ParsedOptions()
     guard case .argumentList(let args) = attr.arguments else { return result }
+
+    // First pass: collect resolver type names and flags
+    var resolverNames: [String] = []
     for arg in args {
         let expr = arg.expression
 
@@ -402,31 +410,25 @@ private func parseSlotOptions(from attr: AttributeSyntax) -> ParsedOptions {
             memberAccess.declName.baseName.text == "self",
             let base = memberAccess.base
         {
-            result.resolvers.append(base.trimmedDescription)
+            resolverNames.append(base.trimmedDescription)
             continue
         }
 
-        // Check for chained access like `.text.unlabeled`
-        if let outer = expr.as(MemberAccessExprSyntax.self),
-            outer.declName.baseName.text == "unlabeled",
-            let inner = outer.base?.as(MemberAccessExprSyntax.self)
-        {
-            switch inner.declName.baseName.text {
-            case "text":
-                result.flags.insert(.text)
-                result.flags.insert(.unlabeled)
-            default: break
-            }
-            continue
-        }
-
-        // Simple access like `.text` or `.systemImage`
+        // Simple access like `.text`, `.systemImage`, or `.unlabeled`
         switch expr.as(MemberAccessExprSyntax.self)?.declName.baseName.text {
         case "text": result.flags.insert(.text)
         case "systemImage": result.flags.insert(.systemImage)
+        case "unlabeled": result.flags.insert(.unlabeled)
         default: break
         }
     }
+
+    // Build resolver options, applying unlabeled flag to all resolvers on this attribute
+    let isUnlabeled = result.flags.contains(.unlabeled)
+    for name in resolverNames {
+        result.resolvers.append(ResolverOption(typeName: name, isUnlabeled: isUnlabeled))
+    }
+
     return result
 }
 
@@ -456,7 +458,7 @@ private func allCombinations(for slots: [SlotDescriptor]) -> [[SlotMode]] {
         }
         if slot.hasSystemImage { modes.append(.systemImage) }
         for resolver in slot.resolvers {
-            modes.append(.resolved(typeName: resolver))
+            modes.append(.resolved(typeName: resolver.typeName))
         }
         if slot.isOptional { modes.append(.empty) }
 
@@ -564,24 +566,25 @@ private func extensionGroups(
                 }
             case .resolved(let typeName):
                 constraints.append("\(slot.genericParam) == \(typeName).Output")
-                if slot.isOptional {
-                    entries.append(
-                        ParamEntry(
-                            param: "\(slot.name): \(typeName).Input?",
-                            assignment:
-                                "self.\(slot.name) = \(slot.name).map { \(typeName).resolve($0) }",
-                            tier: .value,
-                            declarationIndex: slot.declarationIndex
-                        ))
-                } else {
-                    entries.append(
-                        ParamEntry(
-                            param: "\(slot.name): \(typeName).Input",
-                            assignment: "self.\(slot.name) = \(typeName).resolve(\(slot.name))",
-                            tier: .value,
-                            declarationIndex: slot.declarationIndex
-                        ))
-                }
+                let isUnlabeled =
+                    slot.resolvers.first(where: { $0.typeName == typeName })?.isUnlabeled ?? false
+                let labelPrefix = isUnlabeled ? "_ " : ""
+                let resolve = "\(typeName).resolve(\(slot.name))"
+                let param =
+                    slot.isOptional
+                    ? "\(labelPrefix)\(slot.name): \(typeName).Input?"
+                    : "\(labelPrefix)\(slot.name): \(typeName).Input"
+                let assignment =
+                    slot.isOptional
+                    ? "self.\(slot.name) = \(slot.name).map { \(typeName).resolve($0) }"
+                    : "self.\(slot.name) = \(resolve)"
+                entries.append(
+                    ParamEntry(
+                        param: param,
+                        assignment: assignment,
+                        tier: .value,
+                        declarationIndex: slot.declarationIndex
+                    ))
             case .empty:
                 constraints.append("\(slot.genericParam) == Never")
                 emptyAssignments.append("self.\(slot.name) = nil")

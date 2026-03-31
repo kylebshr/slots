@@ -51,7 +51,7 @@ final class SlotTests: XCTestCase {
             """
             @Slots
             struct Badge<Label: View>: View {
-                @Slot(.text.unlabeled) var label: Label
+                @Slot(.text, .unlabeled) var label: Label
                 var body: some View { EmptyView() }
             }
             """,
@@ -1353,6 +1353,35 @@ final class SlotTests: XCTestCase {
                     init(title: String, when_: DateResolver.Input) {
                         self.title = Text(title)
                         self.when_ = DateResolver.resolve(when_)
+                    }
+                }
+                """,
+            macros: testMacros
+        )
+    }
+
+    func testResolverUnlabeled() {
+        assertMacroExpansion(
+            """
+            @Slots
+            struct Row<Icon: View>: View {
+                @Slot(SomeResolver.self, .unlabeled) var icon: Icon
+                var body: some View { EmptyView() }
+            }
+            """,
+            expandedSource: """
+                struct Row<Icon: View>: View {
+                    var icon: Icon
+                    var body: some View { EmptyView() }
+
+                    init(@ViewBuilder icon: () -> Icon) {
+                        self.icon = icon()
+                    }
+                }
+
+                extension Row where Icon == SomeResolver.Output {
+                    init(_ icon: SomeResolver.Input) {
+                        self.icon = SomeResolver.resolve(icon)
                     }
                 }
                 """,
