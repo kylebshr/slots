@@ -153,6 +153,114 @@ final class SlotTests: XCTestCase {
         )
     }
 
+    func testSingleSlotEmpty() {
+        assertMacroExpansion(
+            """
+            @Slots
+            struct Card<Actions: View>: View {
+                @Slot(.empty) var actions: Actions
+                var body: some View { EmptyView() }
+            }
+            """,
+            expandedSource: """
+                struct Card<Actions: View>: View {
+                    var actions: Actions
+                    var body: some View { EmptyView() }
+
+                    init(@ViewBuilder actions: () -> Actions) {
+                        self.actions = actions()
+                    }
+                }
+
+                extension Card where Actions == EmptyView {
+                    init() {
+                        self.actions = EmptyView()
+                    }
+                }
+                """,
+            macros: testMacros
+        )
+    }
+
+    func testSingleSlotTextAndEmpty() {
+        assertMacroExpansion(
+            """
+            @Slots
+            struct Card<Title: View>: View {
+                @Slot(.text, .empty) var title: Title
+                var body: some View { EmptyView() }
+            }
+            """,
+            expandedSource: """
+                struct Card<Title: View>: View {
+                    var title: Title
+                    var body: some View { EmptyView() }
+
+                    init(@ViewBuilder title: () -> Title) {
+                        self.title = title()
+                    }
+                }
+
+                extension Card where Title == Text {
+                    init(title: LocalizedStringResource) {
+                        self.title = Text(title)
+                    }
+
+                    @_disfavoredOverload
+                    init(title: String) {
+                        self.title = Text(title)
+                    }
+                }
+
+                extension Card where Title == EmptyView {
+                    init() {
+                        self.title = EmptyView()
+                    }
+                }
+                """,
+            macros: testMacros
+        )
+    }
+
+    func testEmptyOnOptionalSlotErrors() {
+        assertMacroExpansion(
+            """
+            @Slots
+            struct Card<Actions: View>: View {
+                @Slot(.empty) var actions: Actions?
+                var body: some View { EmptyView() }
+            }
+            """,
+            expandedSource: """
+                struct Card<Actions: View>: View {
+                    var actions: Actions?
+                    var body: some View { EmptyView() }
+
+                    init(@ViewBuilder actions: () -> Actions) {
+                        self.actions = Optional(actions())
+                    }
+                }
+
+                extension Card where Actions == Never {
+                    init() {
+                        self.actions = nil
+                    }
+                }
+                """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message:
+                        "@Slot(.empty) on 'actions': .empty cannot be used on optional slots; optional slots already support omission",
+                    line: 3, column: 5),
+                DiagnosticSpec(
+                    message:
+                        "@Slot(.empty) on 'actions': .empty cannot be used on optional slots; optional slots already support omission",
+                    line: 3, column: 5),
+            ],
+            macros: testMacros
+        )
+    }
+
     // MARK: - Two slot tests
 
     func testTwoSlotsTextAndOptional() {

@@ -261,6 +261,7 @@ private struct SlotDescriptor {
     let isOptional: Bool
     let hasText: Bool
     let hasSystemImage: Bool
+    let hasEmpty: Bool
     let isUnlabeled: Bool
     let resolvers: [ResolverOption]
     let declarationIndex: Int
@@ -275,6 +276,7 @@ private enum SlotMode: Equatable {
     case systemImage  // fix to Image, {name}SystemName: String param
     case resolved(typeName: String)  // fix to Resolver.Output, Resolver.Input param
     case empty  // fix to Never, parameter omitted (stores nil)
+    case emptyView  // fix to EmptyView, parameter omitted (stores EmptyView())
 }
 
 // MARK: - Init spec (one init inside an extension)
@@ -338,10 +340,15 @@ private func collectSlots(
                 .wrappedType.as(IdentifierTypeSyntax.self)?.name.text,
                 genericNames.contains(inner)
             {
+                if options.flags.contains(.empty), let attr = slotAttrs.first {
+                    context.diagnose(
+                        Diagnostic(node: attr, message: SlotError.emptyOnOptionalSlot(propertyName)))
+                }
                 return SlotDescriptor(
                     name: propertyName, genericParam: inner, isOptional: true,
                     hasText: options.flags.contains(.text),
                     hasSystemImage: options.flags.contains(.systemImage),
+                    hasEmpty: false,
                     isUnlabeled: options.flags.contains(.unlabeled),
                     resolvers: options.resolvers,
                     declarationIndex: memberIndex)
@@ -357,6 +364,7 @@ private func collectSlots(
                     name: propertyName, genericParam: name, isOptional: false,
                     hasText: options.flags.contains(.text),
                     hasSystemImage: options.flags.contains(.systemImage),
+                    hasEmpty: options.flags.contains(.empty),
                     isUnlabeled: options.flags.contains(.unlabeled),
                     resolvers: options.resolvers,
                     declarationIndex: memberIndex)
@@ -379,6 +387,7 @@ private struct OptionFlags: OptionSet {
     static let text = OptionFlags(rawValue: 1 << 0)
     static let systemImage = OptionFlags(rawValue: 1 << 1)
     static let unlabeled = OptionFlags(rawValue: 1 << 2)
+    static let empty = OptionFlags(rawValue: 1 << 3)
 }
 
 private struct ResolverOption: Equatable {
@@ -419,6 +428,7 @@ private func parseSlotOptions(from attr: AttributeSyntax) -> ParsedOptions {
         case "text": result.flags.insert(.text)
         case "systemImage": result.flags.insert(.systemImage)
         case "unlabeled": result.flags.insert(.unlabeled)
+        case "empty": result.flags.insert(.empty)
         default: break
         }
     }
@@ -442,7 +452,8 @@ private func initCombinationCount(for slots: [SlotDescriptor]) -> Int {
         if slot.hasText { modes += 2 }  // text + string
         if slot.hasSystemImage { modes += 1 }
         modes += slot.resolvers.count
-        if slot.isOptional { modes += 1 }  // empty
+        if slot.isOptional { modes += 1 }  // empty (Never, nil)
+        if slot.hasEmpty { modes += 1 }  // emptyView (EmptyView)
         return count * modes
     }
 }
@@ -461,6 +472,7 @@ private func allCombinations(for slots: [SlotDescriptor]) -> [[SlotMode]] {
             modes.append(.resolved(typeName: resolver.typeName))
         }
         if slot.isOptional { modes.append(.empty) }
+        if slot.hasEmpty { modes.append(.emptyView) }
 
         guard !combos.isEmpty else { return modes.map { [$0] } }
         return combos.flatMap { existing in modes.map { existing + [$0] } }
@@ -588,6 +600,9 @@ private func extensionGroups(
             case .empty:
                 constraints.append("\(slot.genericParam) == Never")
                 emptyAssignments.append("self.\(slot.name) = nil")
+            case .emptyView:
+                constraints.append("\(slot.genericParam) == EmptyView")
+                emptyAssignments.append("self.\(slot.name) = EmptyView()")
             }
         }
 
@@ -642,6 +657,7 @@ enum SlotError: Error, CustomStringConvertible {
     case notAStruct
     case cannotResolveGenericForSlot(String)
     case tooManyInits(count: Int, limit: Int)
+    case emptyOnOptionalSlot(String)
 
     var description: String {
         switch self {
@@ -652,6 +668,9 @@ enum SlotError: Error, CustomStringConvertible {
         case .tooManyInits(let count, let limit):
             return
                 "@Slots would generate \(count) initializers (limit is \(limit)); reduce the number of slots or slot options to stay within the limit"
+        case .emptyOnOptionalSlot(let name):
+            return
+                "@Slot(.empty) on '\(name)': .empty cannot be used on optional slots; optional slots already support omission"
         }
     }
 }
