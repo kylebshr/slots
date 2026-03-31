@@ -5,7 +5,7 @@ import SwiftUI
 /// Optional generic properties (`Icon?`) are slots automatically — `@Slot` is only
 /// required on non-optional generics (`Label`) or when specifying options.
 ///
-/// - `.text` — add `init` variants accepting `LocalizedStringKey` and `String` (disfavored), both stored as `Text(...)`
+/// - `.text` — add `init` variants accepting `LocalizedStringResource` and `String` (disfavored), both stored as `Text(...)`
 /// - `.systemImage` — add an `init` variant accepting `{name}SystemName: String`, stored as `Image(systemName:)`
 /// - `.unlabeled` — omit the external parameter label (`_ name:`) in convenience inits
 @attached(peer)

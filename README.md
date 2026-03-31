@@ -23,7 +23,7 @@ But `Button` also works with a plain string:
 Button("Sign In", action: signIn)
 ```
 
-That convenience doesn't come for free. Under the hood, SwiftUI ships two extra initializers in constrained extensions — one for `LocalizedStringKey` (preferred) and one for `String` (disfavored), both pinning `Label == Text`:
+That convenience doesn't come for free. Under the hood, SwiftUI ships two extra initializers in constrained extensions — one for `LocalizedStringResource` (preferred) and one for `String` (disfavored), both pinning `Label == Text`:
 
 ```swift
 // The generic init — lives on the struct itself
@@ -31,7 +31,7 @@ init(action: @escaping () -> Void, @ViewBuilder label: () -> Label)
 
 // Convenience inits — live in a constrained extension
 extension Button where Label == Text {
-    init(_ titleKey: LocalizedStringKey, action: @escaping () -> Void)
+    init(_ titleKey: LocalizedStringResource, action: @escaping () -> Void)
 
     @_disfavoredOverload
     init<S: StringProtocol>(_ title: S, action: @escaping () -> Void)
@@ -48,13 +48,13 @@ struct Card<Title: View, Actions: View>: View {
     init(@ViewBuilder title: () -> Title, @ViewBuilder actions: () -> Actions) { ... }
 
     // extension Card where Title == Text
-    init(title: LocalizedStringKey, @ViewBuilder actions: () -> Actions) { ... }
+    init(title: LocalizedStringResource, @ViewBuilder actions: () -> Actions) { ... }
 
     // extension Card where Actions == Never
     init(@ViewBuilder title: () -> Title) where Actions == Never { ... }
 
     // extension Card where Title == Text, Actions == Never
-    init(title: LocalizedStringKey) where Actions == Never { ... }
+    init(title: LocalizedStringResource) where Actions == Never { ... }
 }
 ```
 
@@ -71,7 +71,7 @@ import Slots
 
 @Slots
 struct Card<Title: View, Actions: View>: View {
-    @Slot(.text)   // optional: adds LocalizedStringKey / String convenience inits
+    @Slot(.text)   // optional: adds LocalizedStringResource / String convenience inits
     var title: Title
 
     var actions: Actions?   // optional slot — no annotation needed
@@ -87,7 +87,7 @@ That's it. The macro expands to:
 init(@ViewBuilder title: () -> Title, @ViewBuilder actions: () -> Actions)
 
 // extension Card where Title == Text
-init(title: LocalizedStringKey, @ViewBuilder actions: () -> Actions)
+init(title: LocalizedStringResource, @ViewBuilder actions: () -> Actions)
 @_disfavoredOverload
 init(title: String, @ViewBuilder actions: () -> Actions)
 
@@ -95,7 +95,7 @@ init(title: String, @ViewBuilder actions: () -> Actions)
 init(@ViewBuilder title: () -> Title)
 
 // extension Card where Title == Text, Actions == Never
-init(title: LocalizedStringKey)
+init(title: LocalizedStringResource)
 @_disfavoredOverload
 init(title: String)
 ```
@@ -103,8 +103,8 @@ init(title: String)
 Call sites stay clean and exactly what you'd expect:
 
 ```swift
-Card(title: "Hello") { likeButton }           // LocalizedStringKey + custom view
-Card(title: "Hello")                           // LocalizedStringKey, no actions
+Card(title: "Hello") { likeButton }           // LocalizedStringResource + custom view
+Card(title: "Hello")                           // LocalizedStringResource, no actions
 Card { headerView } actions: { likeButton }   // custom view + custom view
 Card { headerView }                            // custom view, no actions
 ```
@@ -121,7 +121,7 @@ The available options are:
 
 | Option | Effect |
 |---|---|
-| `.text` | Adds `init` variants where this slot accepts `LocalizedStringKey` (preferred) or `String` (disfavored), both stored as `Text(...)` |
+| `.text` | Adds `init` variants where this slot accepts `LocalizedStringResource` (preferred) or `String` (disfavored), both stored as `Text(...)` |
 | `.systemImage` | Adds an `init` variant where this slot accepts `{name}SystemName: String`, stored as `Image(systemName:)` |
 
 ### Optional slots
@@ -184,7 +184,7 @@ Generated inits:
 init(@ViewBuilder icon: () -> Icon, @ViewBuilder label: () -> Label)
 
 // extension Badge where Label == Text — value param before @ViewBuilder
-init(label: LocalizedStringKey, @ViewBuilder icon: () -> Icon)           // preferred
+init(label: LocalizedStringResource, @ViewBuilder icon: () -> Icon)           // preferred
 @_disfavoredOverload
 init(label: String, @ViewBuilder icon: () -> Icon)                       // disfavored
 
@@ -192,7 +192,7 @@ init(label: String, @ViewBuilder icon: () -> Icon)                       // disf
 init(@ViewBuilder label: () -> Label)
 
 // extension Badge where Icon == Never, Label == Text
-init(label: LocalizedStringKey)                                          // preferred
+init(label: LocalizedStringResource)                                          // preferred
 @_disfavoredOverload
 init(label: String)                                                      // disfavored
 ```
@@ -200,9 +200,9 @@ init(label: String)                                                      // disf
 Call sites:
 
 ```swift
-Badge(label: "New")                                    // LocalizedStringKey, no icon
+Badge(label: "New")                                    // LocalizedStringResource, no icon
 Badge(label: "New" as String)                          // explicit String, no icon
-Badge(label: "New") { Image(systemName: "star") }     // LocalizedStringKey + icon
+Badge(label: "New") { Image(systemName: "star") }     // LocalizedStringResource + icon
 Badge { starView } label: { customLabel }              // fully generic
 ```
 
@@ -225,7 +225,7 @@ struct Row<Content: View>: View {
 // Generated:
 init(isSelected: Bool, badge: Int = 0, @ViewBuilder content: () -> Content)
 // extension Row where Content == Text
-init(isSelected: Bool, badge: Int = 0, content: LocalizedStringKey)
+init(isSelected: Bool, badge: Int = 0, content: LocalizedStringResource)
 @_disfavoredOverload
 init(isSelected: Bool, badge: Int = 0, content: String)
 ```
@@ -234,7 +234,7 @@ init(isSelected: Bool, badge: Int = 0, content: String)
 
 Generated init parameters are sorted by type to match SwiftUI conventions, regardless of declaration order in the struct:
 
-1. **Value parameters** — plain stored properties (`style: Int`, `isEnabled: Bool`) and text/string/systemImage slot parameters (`title: LocalizedStringKey`, `iconSystemName: String`)
+1. **Value parameters** — plain stored properties (`style: Int`, `isEnabled: Bool`) and text/string/systemImage slot parameters (`title: LocalizedStringResource`, `iconSystemName: String`)
 2. **Closure parameters** — plain stored properties with function types (`action: @escaping () -> Void`). Non-optional closures automatically get `@escaping`.
 3. **@ViewBuilder closures** — slots in generic mode and plain generic view properties (`@ViewBuilder label: () -> Label`)
 
@@ -292,4 +292,4 @@ struct MyComponent<...>: View { ... }
 `@Slots` is an `@attached(member)` + `@attached(extension)` macro. Non-required generic properties (those typed as optional generics like `Icon?`) are automatically treated as slots. The `@Slot` annotation is only needed to specify options.
 
 - The **member** expansion adds the base all-generic `init` directly on the struct, with each slot parameter as a `@ViewBuilder` closure.
-- The **extension** expansion generates one `extension MyComponent where ...` per unique combination of fixed slot types. Grouping by where-clause means `LocalizedStringKey` and `String` variants for the same slot share a single extension with two `init` overloads.
+- The **extension** expansion generates one `extension MyComponent where ...` per unique combination of fixed slot types. Grouping by where-clause means `LocalizedStringResource` and `String` variants for the same slot share a single extension with two `init` overloads.

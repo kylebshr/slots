@@ -270,7 +270,7 @@ private struct SlotDescriptor {
 
 private enum SlotMode: Equatable {
     case generic  // caller passes any View
-    case text  // fix to Text, LocalizedStringKey param, preferred
+    case text  // fix to Text, LocalizedStringResource param, preferred
     case string  // fix to Text, String param, @_disfavoredOverload
     case systemImage  // fix to Image, {name}SystemName: String param
     case resolved(typeName: String)  // fix to Resolver.Output, Resolver.Input param
@@ -509,7 +509,7 @@ private func extensionGroups(
                 if slot.isOptional {
                     entries.append(
                         ParamEntry(
-                            param: "\(labelPrefix)\(slot.name): LocalizedStringKey?",
+                            param: "\(labelPrefix)\(slot.name): LocalizedStringResource?",
                             assignment: "self.\(slot.name) = \(slot.name).map { Text($0) }",
                             tier: .value,
                             declarationIndex: slot.declarationIndex
@@ -517,7 +517,7 @@ private func extensionGroups(
                 } else {
                     entries.append(
                         ParamEntry(
-                            param: "\(labelPrefix)\(slot.name): LocalizedStringKey",
+                            param: "\(labelPrefix)\(slot.name): LocalizedStringResource",
                             assignment: "self.\(slot.name) = Text(\(slot.name))",
                             tier: .value,
                             declarationIndex: slot.declarationIndex

@@ -82,7 +82,7 @@ final class SlotIntegrationTests: XCTestCase {
     func testBadgeSingleSlot() {
         // generic View (ViewBuilder closure)
         let _: Badge<Text> = Badge { Text("hi") }
-        // LocalizedStringKey → Label == Text
+        // LocalizedStringResource → Label == Text
         let _: Badge<Text> = Badge(label: "hello")
         // String (disfavored) → Label == Text
         let _: Badge<Text> = Badge(label: "hello" as String)
@@ -99,13 +99,13 @@ final class SlotIntegrationTests: XCTestCase {
         } actions: {
             Button("OK") {}
         }
-        // LocalizedStringKey title, generic actions
+        // LocalizedStringResource title, generic actions
         let _: Card<Text, Button<Text>> = Card(title: "hi", actions: { Button("OK") {} })
         // String title (disfavored), generic actions
         let _: Card<Text, Button<Text>> = Card(title: "hi" as String, actions: { Button("OK") {} })
         // generic title, no actions → Actions == Never
         let _: Card<Text, Never> = Card { Text("hi") }
-        // LocalizedStringKey title, no actions
+        // LocalizedStringResource title, no actions
         let _: Card<Text, Never> = Card(title: "hi")
         // String title (disfavored), no actions
         let _: Card<Text, Never> = Card(title: "hi" as String)
@@ -117,17 +117,17 @@ final class SlotIntegrationTests: XCTestCase {
         // all generic (ViewBuilder closures)
         let _: Row<Image, Text, Text> = Row(
             isSelected: false, leading: { Image(systemName: "star") }, content: { Text("hi") }, trailing: { Text("→") })
-        // LocalizedStringKey content, generic leading + trailing
+        // LocalizedStringResource content, generic leading + trailing
         let _: Row<Image, Text, Text> = Row(
             isSelected: true, content: "hi", leading: { Image(systemName: "star") }, trailing: { Text("→") })
-        // image leading, LocalizedStringKey content, generic trailing
+        // image leading, LocalizedStringResource content, generic trailing
         let _: Row<Image, Text, Text> = Row(
             isSelected: false, leadingSystemName: "star", content: "hi", trailing: { Text("→") })
-        // image leading, LocalizedStringKey content, no trailing
+        // image leading, LocalizedStringResource content, no trailing
         let _: Row<Image, Text, Never> = Row(isSelected: false, leadingSystemName: "star", content: "hi")
-        // no leading, LocalizedStringKey content, generic trailing
+        // no leading, LocalizedStringResource content, generic trailing
         let _: Row<Never, Text, Text> = Row(isSelected: false, content: "hi", trailing: { Text("→") })
-        // no leading, LocalizedStringKey content, no trailing
+        // no leading, LocalizedStringResource content, no trailing
         let _: Row<Never, Text, Never> = Row(isSelected: false, content: "hi")
         // no leading, no trailing, generic content
         let _: Row<Never, Text, Never> = Row(isSelected: false) { Text("hi") }

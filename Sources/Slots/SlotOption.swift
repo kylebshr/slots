@@ -7,7 +7,7 @@ public struct SlotOption: Sendable, Equatable {
         self.id = id
     }
 
-    /// Generate `LocalizedStringKey` → `Text` and `@_disfavoredOverload` `String` → `Text` convenience inits for this slot.
+    /// Generate `LocalizedStringResource` → `Text` and `@_disfavoredOverload` `String` → `Text` convenience inits for this slot.
     public static let text = SlotOption(id: 0)
     /// Generate `{name}SystemName: String` → `Image(systemName:)` convenience init for this slot.
     public static let systemImage = SlotOption(id: 1)

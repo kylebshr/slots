@@ -32,7 +32,7 @@ final class SlotTests: XCTestCase {
                 }
 
                 extension Badge where Label == Text {
-                    init(label: LocalizedStringKey) {
+                    init(label: LocalizedStringResource) {
                         self.label = Text(label)
                     }
 
@@ -66,7 +66,7 @@ final class SlotTests: XCTestCase {
                 }
 
                 extension Badge where Label == Text {
-                    init(_ label: LocalizedStringKey) {
+                    init(_ label: LocalizedStringResource) {
                         self.label = Text(label)
                     }
 
@@ -129,7 +129,7 @@ final class SlotTests: XCTestCase {
                 }
 
                 extension Badge where Label == Text {
-                    init(label: LocalizedStringKey?) {
+                    init(label: LocalizedStringResource?) {
                         self.label = label.map {
                             Text($0)
                         }
@@ -185,7 +185,7 @@ final class SlotTests: XCTestCase {
                 }
 
                 extension Card where Title == Text {
-                    init(title: LocalizedStringKey, @ViewBuilder actions: () -> Actions) {
+                    init(title: LocalizedStringResource, @ViewBuilder actions: () -> Actions) {
                         self.title = Text(title)
                         self.actions = Optional(actions())
                     }
@@ -198,7 +198,7 @@ final class SlotTests: XCTestCase {
                 }
 
                 extension Card where Title == Text, Actions == Never {
-                    init(title: LocalizedStringKey) {
+                    init(title: LocalizedStringResource) {
                         self.title = Text(title)
                         self.actions = nil
                     }
@@ -244,7 +244,7 @@ final class SlotTests: XCTestCase {
                 }
 
                 extension Card where Title == Text {
-                    init(title: LocalizedStringKey, @ViewBuilder footer: () -> Footer) {
+                    init(title: LocalizedStringResource, @ViewBuilder footer: () -> Footer) {
                         self.title = Text(title)
                         self.footer = Optional(footer())
                     }
@@ -257,7 +257,7 @@ final class SlotTests: XCTestCase {
                 }
 
                 extension Card where Title == Text, Footer == Never {
-                    init(title: LocalizedStringKey) {
+                    init(title: LocalizedStringResource) {
                         self.title = Text(title)
                         self.footer = nil
                     }
@@ -309,7 +309,7 @@ final class SlotTests: XCTestCase {
                 }
 
                 extension Card where Subtitle == Text {
-                    init(subtitle: LocalizedStringKey, @ViewBuilder title: () -> Title, @ViewBuilder actions: () -> Actions) {
+                    init(subtitle: LocalizedStringResource, @ViewBuilder title: () -> Title, @ViewBuilder actions: () -> Actions) {
                         self.subtitle = Text(subtitle)
                         self.title = title()
                         self.actions = Optional(actions())
@@ -324,7 +324,7 @@ final class SlotTests: XCTestCase {
                 }
 
                 extension Card where Subtitle == Text, Actions == Never {
-                    init(subtitle: LocalizedStringKey, @ViewBuilder title: () -> Title) {
+                    init(subtitle: LocalizedStringResource, @ViewBuilder title: () -> Title) {
                         self.subtitle = Text(subtitle)
                         self.title = title()
                         self.actions = nil
@@ -339,7 +339,7 @@ final class SlotTests: XCTestCase {
                 }
 
                 extension Card where Title == Text {
-                    init(title: LocalizedStringKey, @ViewBuilder subtitle: () -> Subtitle, @ViewBuilder actions: () -> Actions) {
+                    init(title: LocalizedStringResource, @ViewBuilder subtitle: () -> Subtitle, @ViewBuilder actions: () -> Actions) {
                         self.title = Text(title)
                         self.subtitle = subtitle()
                         self.actions = Optional(actions())
@@ -354,7 +354,7 @@ final class SlotTests: XCTestCase {
                 }
 
                 extension Card where Title == Text, Actions == Never {
-                    init(title: LocalizedStringKey, @ViewBuilder subtitle: () -> Subtitle) {
+                    init(title: LocalizedStringResource, @ViewBuilder subtitle: () -> Subtitle) {
                         self.title = Text(title)
                         self.subtitle = subtitle()
                         self.actions = nil
@@ -369,21 +369,21 @@ final class SlotTests: XCTestCase {
                 }
 
                 extension Card where Title == Text, Subtitle == Text {
-                    init(title: LocalizedStringKey, subtitle: LocalizedStringKey, @ViewBuilder actions: () -> Actions) {
+                    init(title: LocalizedStringResource, subtitle: LocalizedStringResource, @ViewBuilder actions: () -> Actions) {
                         self.title = Text(title)
                         self.subtitle = Text(subtitle)
                         self.actions = Optional(actions())
                     }
 
                     @_disfavoredOverload
-                    init(title: LocalizedStringKey, subtitle: String, @ViewBuilder actions: () -> Actions) {
+                    init(title: LocalizedStringResource, subtitle: String, @ViewBuilder actions: () -> Actions) {
                         self.title = Text(title)
                         self.subtitle = Text(subtitle)
                         self.actions = Optional(actions())
                     }
 
                     @_disfavoredOverload
-                    init(title: String, subtitle: LocalizedStringKey, @ViewBuilder actions: () -> Actions) {
+                    init(title: String, subtitle: LocalizedStringResource, @ViewBuilder actions: () -> Actions) {
                         self.title = Text(title)
                         self.subtitle = Text(subtitle)
                         self.actions = Optional(actions())
@@ -398,21 +398,21 @@ final class SlotTests: XCTestCase {
                 }
 
                 extension Card where Title == Text, Subtitle == Text, Actions == Never {
-                    init(title: LocalizedStringKey, subtitle: LocalizedStringKey) {
+                    init(title: LocalizedStringResource, subtitle: LocalizedStringResource) {
                         self.title = Text(title)
                         self.subtitle = Text(subtitle)
                         self.actions = nil
                     }
 
                     @_disfavoredOverload
-                    init(title: LocalizedStringKey, subtitle: String) {
+                    init(title: LocalizedStringResource, subtitle: String) {
                         self.title = Text(title)
                         self.subtitle = Text(subtitle)
                         self.actions = nil
                     }
 
                     @_disfavoredOverload
-                    init(title: String, subtitle: LocalizedStringKey) {
+                    init(title: String, subtitle: LocalizedStringResource) {
                         self.title = Text(title)
                         self.subtitle = Text(subtitle)
                         self.actions = nil
@@ -470,7 +470,7 @@ final class SlotTests: XCTestCase {
                 }
 
                 extension Card where Body == Text {
-                    init(body_: LocalizedStringKey, @ViewBuilder title: () -> Title, @ViewBuilder subtitle: () -> Subtitle, @ViewBuilder footer: () -> Footer) {
+                    init(body_: LocalizedStringResource, @ViewBuilder title: () -> Title, @ViewBuilder subtitle: () -> Subtitle, @ViewBuilder footer: () -> Footer) {
                         self.body_ = Text(body_)
                         self.title = title()
                         self.subtitle = Optional(subtitle())
@@ -487,7 +487,7 @@ final class SlotTests: XCTestCase {
                 }
 
                 extension Card where Body == Text, Footer == Never {
-                    init(body_: LocalizedStringKey, @ViewBuilder title: () -> Title, @ViewBuilder subtitle: () -> Subtitle) {
+                    init(body_: LocalizedStringResource, @ViewBuilder title: () -> Title, @ViewBuilder subtitle: () -> Subtitle) {
                         self.body_ = Text(body_)
                         self.title = title()
                         self.subtitle = Optional(subtitle())
@@ -522,7 +522,7 @@ final class SlotTests: XCTestCase {
                 }
 
                 extension Card where Subtitle == Never, Body == Text {
-                    init(body_: LocalizedStringKey, @ViewBuilder title: () -> Title, @ViewBuilder footer: () -> Footer) {
+                    init(body_: LocalizedStringResource, @ViewBuilder title: () -> Title, @ViewBuilder footer: () -> Footer) {
                         self.body_ = Text(body_)
                         self.title = title()
                         self.footer = Optional(footer())
@@ -539,7 +539,7 @@ final class SlotTests: XCTestCase {
                 }
 
                 extension Card where Subtitle == Never, Body == Text, Footer == Never {
-                    init(body_: LocalizedStringKey, @ViewBuilder title: () -> Title) {
+                    init(body_: LocalizedStringResource, @ViewBuilder title: () -> Title) {
                         self.body_ = Text(body_)
                         self.title = title()
                         self.subtitle = nil
@@ -556,7 +556,7 @@ final class SlotTests: XCTestCase {
                 }
 
                 extension Card where Title == Text {
-                    init(title: LocalizedStringKey, @ViewBuilder subtitle: () -> Subtitle, @ViewBuilder body_: () -> Body, @ViewBuilder footer: () -> Footer) {
+                    init(title: LocalizedStringResource, @ViewBuilder subtitle: () -> Subtitle, @ViewBuilder body_: () -> Body, @ViewBuilder footer: () -> Footer) {
                         self.title = Text(title)
                         self.subtitle = Optional(subtitle())
                         self.body_ = body_()
@@ -573,7 +573,7 @@ final class SlotTests: XCTestCase {
                 }
 
                 extension Card where Title == Text, Footer == Never {
-                    init(title: LocalizedStringKey, @ViewBuilder subtitle: () -> Subtitle, @ViewBuilder body_: () -> Body) {
+                    init(title: LocalizedStringResource, @ViewBuilder subtitle: () -> Subtitle, @ViewBuilder body_: () -> Body) {
                         self.title = Text(title)
                         self.subtitle = Optional(subtitle())
                         self.body_ = body_()
@@ -590,7 +590,7 @@ final class SlotTests: XCTestCase {
                 }
 
                 extension Card where Title == Text, Body == Text {
-                    init(title: LocalizedStringKey, body_: LocalizedStringKey, @ViewBuilder subtitle: () -> Subtitle, @ViewBuilder footer: () -> Footer) {
+                    init(title: LocalizedStringResource, body_: LocalizedStringResource, @ViewBuilder subtitle: () -> Subtitle, @ViewBuilder footer: () -> Footer) {
                         self.title = Text(title)
                         self.body_ = Text(body_)
                         self.subtitle = Optional(subtitle())
@@ -598,7 +598,7 @@ final class SlotTests: XCTestCase {
                     }
 
                     @_disfavoredOverload
-                    init(title: LocalizedStringKey, body_: String, @ViewBuilder subtitle: () -> Subtitle, @ViewBuilder footer: () -> Footer) {
+                    init(title: LocalizedStringResource, body_: String, @ViewBuilder subtitle: () -> Subtitle, @ViewBuilder footer: () -> Footer) {
                         self.title = Text(title)
                         self.body_ = Text(body_)
                         self.subtitle = Optional(subtitle())
@@ -606,7 +606,7 @@ final class SlotTests: XCTestCase {
                     }
 
                     @_disfavoredOverload
-                    init(title: String, body_: LocalizedStringKey, @ViewBuilder subtitle: () -> Subtitle, @ViewBuilder footer: () -> Footer) {
+                    init(title: String, body_: LocalizedStringResource, @ViewBuilder subtitle: () -> Subtitle, @ViewBuilder footer: () -> Footer) {
                         self.title = Text(title)
                         self.body_ = Text(body_)
                         self.subtitle = Optional(subtitle())
@@ -623,7 +623,7 @@ final class SlotTests: XCTestCase {
                 }
 
                 extension Card where Title == Text, Body == Text, Footer == Never {
-                    init(title: LocalizedStringKey, body_: LocalizedStringKey, @ViewBuilder subtitle: () -> Subtitle) {
+                    init(title: LocalizedStringResource, body_: LocalizedStringResource, @ViewBuilder subtitle: () -> Subtitle) {
                         self.title = Text(title)
                         self.body_ = Text(body_)
                         self.subtitle = Optional(subtitle())
@@ -631,7 +631,7 @@ final class SlotTests: XCTestCase {
                     }
 
                     @_disfavoredOverload
-                    init(title: LocalizedStringKey, body_: String, @ViewBuilder subtitle: () -> Subtitle) {
+                    init(title: LocalizedStringResource, body_: String, @ViewBuilder subtitle: () -> Subtitle) {
                         self.title = Text(title)
                         self.body_ = Text(body_)
                         self.subtitle = Optional(subtitle())
@@ -639,7 +639,7 @@ final class SlotTests: XCTestCase {
                     }
 
                     @_disfavoredOverload
-                    init(title: String, body_: LocalizedStringKey, @ViewBuilder subtitle: () -> Subtitle) {
+                    init(title: String, body_: LocalizedStringResource, @ViewBuilder subtitle: () -> Subtitle) {
                         self.title = Text(title)
                         self.body_ = Text(body_)
                         self.subtitle = Optional(subtitle())
@@ -656,7 +656,7 @@ final class SlotTests: XCTestCase {
                 }
 
                 extension Card where Title == Text, Subtitle == Never {
-                    init(title: LocalizedStringKey, @ViewBuilder body_: () -> Body, @ViewBuilder footer: () -> Footer) {
+                    init(title: LocalizedStringResource, @ViewBuilder body_: () -> Body, @ViewBuilder footer: () -> Footer) {
                         self.title = Text(title)
                         self.body_ = body_()
                         self.footer = Optional(footer())
@@ -673,7 +673,7 @@ final class SlotTests: XCTestCase {
                 }
 
                 extension Card where Title == Text, Subtitle == Never, Footer == Never {
-                    init(title: LocalizedStringKey, @ViewBuilder body_: () -> Body) {
+                    init(title: LocalizedStringResource, @ViewBuilder body_: () -> Body) {
                         self.title = Text(title)
                         self.body_ = body_()
                         self.subtitle = nil
@@ -690,7 +690,7 @@ final class SlotTests: XCTestCase {
                 }
 
                 extension Card where Title == Text, Subtitle == Never, Body == Text {
-                    init(title: LocalizedStringKey, body_: LocalizedStringKey, @ViewBuilder footer: () -> Footer) {
+                    init(title: LocalizedStringResource, body_: LocalizedStringResource, @ViewBuilder footer: () -> Footer) {
                         self.title = Text(title)
                         self.body_ = Text(body_)
                         self.footer = Optional(footer())
@@ -698,7 +698,7 @@ final class SlotTests: XCTestCase {
                     }
 
                     @_disfavoredOverload
-                    init(title: LocalizedStringKey, body_: String, @ViewBuilder footer: () -> Footer) {
+                    init(title: LocalizedStringResource, body_: String, @ViewBuilder footer: () -> Footer) {
                         self.title = Text(title)
                         self.body_ = Text(body_)
                         self.footer = Optional(footer())
@@ -706,7 +706,7 @@ final class SlotTests: XCTestCase {
                     }
 
                     @_disfavoredOverload
-                    init(title: String, body_: LocalizedStringKey, @ViewBuilder footer: () -> Footer) {
+                    init(title: String, body_: LocalizedStringResource, @ViewBuilder footer: () -> Footer) {
                         self.title = Text(title)
                         self.body_ = Text(body_)
                         self.footer = Optional(footer())
@@ -723,7 +723,7 @@ final class SlotTests: XCTestCase {
                 }
 
                 extension Card where Title == Text, Subtitle == Never, Body == Text, Footer == Never {
-                    init(title: LocalizedStringKey, body_: LocalizedStringKey) {
+                    init(title: LocalizedStringResource, body_: LocalizedStringResource) {
                         self.title = Text(title)
                         self.body_ = Text(body_)
                         self.subtitle = nil
@@ -731,7 +731,7 @@ final class SlotTests: XCTestCase {
                     }
 
                     @_disfavoredOverload
-                    init(title: LocalizedStringKey, body_: String) {
+                    init(title: LocalizedStringResource, body_: String) {
                         self.title = Text(title)
                         self.body_ = Text(body_)
                         self.subtitle = nil
@@ -739,7 +739,7 @@ final class SlotTests: XCTestCase {
                     }
 
                     @_disfavoredOverload
-                    init(title: String, body_: LocalizedStringKey) {
+                    init(title: String, body_: LocalizedStringResource) {
                         self.title = Text(title)
                         self.body_ = Text(body_)
                         self.subtitle = nil
@@ -784,7 +784,7 @@ final class SlotTests: XCTestCase {
                 }
 
                 extension Badge where Label == Text {
-                    init(count: Int = 0, label: LocalizedStringKey) {
+                    init(count: Int = 0, label: LocalizedStringResource) {
                         self.count = count
                         self.label = Text(label)
                     }
@@ -833,7 +833,7 @@ final class SlotTests: XCTestCase {
                 }
 
                 extension Banner where Label == Text {
-                    init(isEnabled: Bool, badge: Int = 0, label: LocalizedStringKey, @ViewBuilder icon: () -> Icon) {
+                    init(isEnabled: Bool, badge: Int = 0, label: LocalizedStringResource, @ViewBuilder icon: () -> Icon) {
                         self.isEnabled = isEnabled
                         self.badge = badge
                         self.label = Text(label)
@@ -859,7 +859,7 @@ final class SlotTests: XCTestCase {
                 }
 
                 extension Banner where Icon == Never, Label == Text {
-                    init(isEnabled: Bool, badge: Int = 0, label: LocalizedStringKey) {
+                    init(isEnabled: Bool, badge: Int = 0, label: LocalizedStringResource) {
                         self.isEnabled = isEnabled
                         self.badge = badge
                         self.label = Text(label)
@@ -905,7 +905,7 @@ final class SlotTests: XCTestCase {
                 }
 
                 extension Section where Title == Text {
-                    init(subtitle: String? = nil, title: LocalizedStringKey, @ViewBuilder content: () -> Content) {
+                    init(subtitle: String? = nil, title: LocalizedStringResource, @ViewBuilder content: () -> Content) {
                         self.subtitle = subtitle
                         self.title = Text(title)
                         self.content = content()
@@ -977,7 +977,7 @@ final class SlotTests: XCTestCase {
                 }
 
                 extension Chip where Label == Text {
-                    init(label: LocalizedStringKey, @ViewBuilder icon: () -> Icon) {
+                    init(label: LocalizedStringResource, @ViewBuilder icon: () -> Icon) {
                         self.label = Text(label)
                         self.icon = Optional(icon())
                     }
@@ -999,7 +999,7 @@ final class SlotTests: XCTestCase {
                 }
 
                 extension Chip where Icon == Image, Label == Text {
-                    init(iconSystemName: String?, label: LocalizedStringKey) {
+                    init(iconSystemName: String?, label: LocalizedStringResource) {
                         self.icon = iconSystemName.map {
                             Image(systemName: $0)
                         }
@@ -1023,7 +1023,7 @@ final class SlotTests: XCTestCase {
                 }
 
                 extension Chip where Icon == Never, Label == Text {
-                    init(label: LocalizedStringKey) {
+                    init(label: LocalizedStringResource) {
                         self.label = Text(label)
                         self.icon = nil
                     }
@@ -1064,7 +1064,7 @@ final class SlotTests: XCTestCase {
                 }
 
                 extension ActionButton where Label == Text {
-                    init(label: LocalizedStringKey, action: @escaping () -> Void) {
+                    init(label: LocalizedStringResource, action: @escaping () -> Void) {
                         self.label = Text(label)
                         self.action = action
                     }
@@ -1119,7 +1119,7 @@ final class SlotTests: XCTestCase {
                 }
 
                 extension Composed where Label == Text {
-                    init(style: Int, label: LocalizedStringKey, onTap: @escaping () -> Void, @ViewBuilder trailing: () -> Trailing) {
+                    init(style: Int, label: LocalizedStringResource, onTap: @escaping () -> Void, @ViewBuilder trailing: () -> Trailing) {
                         self.style = style
                         self.label = Text(label)
                         self.onTap = onTap
@@ -1136,7 +1136,7 @@ final class SlotTests: XCTestCase {
                 }
 
                 extension Composed where Label == Text, Trailing == Never {
-                    init(style: Int, label: LocalizedStringKey, onTap: @escaping () -> Void) {
+                    init(style: Int, label: LocalizedStringResource, onTap: @escaping () -> Void) {
                         self.style = style
                         self.label = Text(label)
                         self.onTap = onTap
@@ -1181,7 +1181,7 @@ final class SlotTests: XCTestCase {
                 }
 
                 extension Toggle where Label == Text {
-                    init(isOn: Binding<Bool>, label: LocalizedStringKey) {
+                    init(isOn: Binding<Bool>, label: LocalizedStringResource) {
                         self._isOn = isOn
                         self.label = Text(label)
                     }
@@ -1219,7 +1219,7 @@ final class SlotTests: XCTestCase {
                 }
 
                 extension Counter where Label == Text {
-                    init(label: LocalizedStringKey) {
+                    init(label: LocalizedStringResource) {
                         self.label = Text(label)
                     }
 
@@ -1331,7 +1331,7 @@ final class SlotTests: XCTestCase {
                 }
 
                 extension EventCard where Title == Text {
-                    init(title: LocalizedStringKey, @ViewBuilder when_: () -> When) {
+                    init(title: LocalizedStringResource, @ViewBuilder when_: () -> When) {
                         self.title = Text(title)
                         self.when_ = when_()
                     }
@@ -1344,7 +1344,7 @@ final class SlotTests: XCTestCase {
                 }
 
                 extension EventCard where Title == Text, When == DateResolver.Output {
-                    init(title: LocalizedStringKey, when_: DateResolver.Input) {
+                    init(title: LocalizedStringResource, when_: DateResolver.Input) {
                         self.title = Text(title)
                         self.when_ = DateResolver.resolve(when_)
                     }
