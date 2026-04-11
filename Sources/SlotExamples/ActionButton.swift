@@ -1,7 +1,7 @@
 import Slots
 import SwiftUI
 
-@Slots(.viewBuilderTrailing) public struct ActionButton<Label: View>: View {
+@Slots(.trailingViewBuilders) public struct ActionButton<Label: View>: View {
     var action: () -> Void
     @Slot(.text, .unlabeled) var label: Label
 

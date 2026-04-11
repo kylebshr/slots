@@ -1189,7 +1189,7 @@ final class SlotTests: XCTestCase {
     }
 
     func testParameterDeclarationOrdering() {
-        // Verifies: without .viewBuilderTrailing, parameters preserve declaration order
+        // Verifies: without .trailingViewBuilders, parameters preserve declaration order
         assertMacroExpansion(
             """
             @Slots
@@ -1265,10 +1265,10 @@ final class SlotTests: XCTestCase {
     }
 
     func testParameterTierOrdering() {
-        // Verifies: with .viewBuilderTrailing, value params → closure params → @ViewBuilder params
+        // Verifies: with .trailingViewBuilders, value params → closure params → @ViewBuilder params
         assertMacroExpansion(
             """
-            @Slots(.viewBuilderTrailing)
+            @Slots(.trailingViewBuilders)
             struct Composed<Label: View, Trailing: View>: View {
                 var style: Int
                 var onTap: () -> Void

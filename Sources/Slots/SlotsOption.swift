@@ -9,5 +9,5 @@ public struct SlotsOption: Sendable, Equatable {
 
     /// Reorder generated init parameters so `@ViewBuilder` closures appear last,
     /// enabling trailing closure syntax.
-    public static let viewBuilderTrailing = SlotsOption(id: 0)
+    public static let trailingViewBuilders = SlotsOption(id: 0)
 }
