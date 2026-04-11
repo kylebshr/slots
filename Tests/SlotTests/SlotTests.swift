@@ -1172,15 +1172,91 @@ final class SlotTests: XCTestCase {
                 }
 
                 extension ActionButton where Label == Text {
-                    init(label: LocalizedStringResource, action: @escaping () -> Void) {
-                        self.label = Text(label)
+                    init(action: @escaping () -> Void, label: LocalizedStringResource) {
                         self.action = action
+                        self.label = Text(label)
                     }
 
                     @_disfavoredOverload
-                    init(label: String, action: @escaping () -> Void) {
-                        self.label = Text(label)
+                    init(action: @escaping () -> Void, label: String) {
                         self.action = action
+                        self.label = Text(label)
+                    }
+                }
+                """,
+            macros: testMacros
+        )
+    }
+
+    func testParameterDeclarationOrdering() {
+        // Verifies: without .viewBuilderTrailing, parameters preserve declaration order
+        assertMacroExpansion(
+            """
+            @Slots
+            struct Composed<Label: View, Trailing: View>: View {
+                var style: Int
+                var onTap: () -> Void
+                @Slot(.text) var label: Label
+                var trailing: Trailing?
+                var body: some View { EmptyView() }
+            }
+            """,
+            expandedSource: """
+                struct Composed<Label: View, Trailing: View>: View {
+                    var style: Int
+                    var onTap: () -> Void
+                    var label: Label
+                    var trailing: Trailing?
+                    var body: some View { EmptyView() }
+
+                    init(style: Int, onTap: @escaping () -> Void, @ViewBuilder label: () -> Label, @ViewBuilder trailing: () -> Trailing) {
+                        self.style = style
+                        self.onTap = onTap
+                        self.label = label()
+                        self.trailing = Optional(trailing())
+                    }
+                }
+
+                extension Composed where Trailing == Never {
+                    init(style: Int, onTap: @escaping () -> Void, @ViewBuilder label: () -> Label) {
+                        self.style = style
+                        self.onTap = onTap
+                        self.label = label()
+                        self.trailing = nil
+                    }
+                }
+
+                extension Composed where Label == Text {
+                    init(style: Int, onTap: @escaping () -> Void, label: LocalizedStringResource, @ViewBuilder trailing: () -> Trailing) {
+                        self.style = style
+                        self.onTap = onTap
+                        self.label = Text(label)
+                        self.trailing = Optional(trailing())
+                    }
+
+                    @_disfavoredOverload
+                    init(style: Int, onTap: @escaping () -> Void, label: String, @ViewBuilder trailing: () -> Trailing) {
+                        self.style = style
+                        self.onTap = onTap
+                        self.label = Text(label)
+                        self.trailing = Optional(trailing())
+                    }
+                }
+
+                extension Composed where Label == Text, Trailing == Never {
+                    init(style: Int, onTap: @escaping () -> Void, label: LocalizedStringResource) {
+                        self.style = style
+                        self.onTap = onTap
+                        self.label = Text(label)
+                        self.trailing = nil
+                    }
+
+                    @_disfavoredOverload
+                    init(style: Int, onTap: @escaping () -> Void, label: String) {
+                        self.style = style
+                        self.onTap = onTap
+                        self.label = Text(label)
+                        self.trailing = nil
                     }
                 }
                 """,
@@ -1189,10 +1265,10 @@ final class SlotTests: XCTestCase {
     }
 
     func testParameterTierOrdering() {
-        // Verifies: value params → closure params → @ViewBuilder params
+        // Verifies: with .viewBuilderTrailing, value params → closure params → @ViewBuilder params
         assertMacroExpansion(
             """
-            @Slots
+            @Slots(.viewBuilderTrailing)
             struct Composed<Label: View, Trailing: View>: View {
                 var style: Int
                 var onTap: () -> Void

@@ -17,4 +17,4 @@ import SwiftUI
 /// ```
 @attached(member, names: named(init))
 @attached(extension, names: named(init))
-public macro Slots() = #externalMacro(module: "SlotMacros", type: "SlotMacro")
+public macro Slots(_ options: SlotsOption...) = #externalMacro(module: "SlotMacros", type: "SlotMacro")

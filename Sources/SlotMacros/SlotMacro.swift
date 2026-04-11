@@ -15,6 +15,7 @@ public struct SlotMacro: MemberMacro, ExtensionMacro {
         in context: some MacroExpansionContext
     ) throws -> [DeclSyntax] {
         let access = accessModifier(of: declaration)
+        let slotsOptions = parseSlotsOptions(from: node)
         let plain = collectPlainProperties(from: declaration)
         let slots = collectSlots(from: declaration, node: node, context: context)
         guard !slots.isEmpty else { return [] }
@@ -33,7 +34,7 @@ public struct SlotMacro: MemberMacro, ExtensionMacro {
                     declarationIndex: slot.declarationIndex
                 )
             }
-        entries.sort { ($0.tier, $0.declarationIndex) < ($1.tier, $1.declarationIndex) }
+        sortEntries(&entries, viewBuilderTrailing: slotsOptions.viewBuilderTrailing)
         let params = entries.map(\.param).joined(separator: ", ")
         let assignments = entries.map(\.assignment).joined(separator: "\n    ")
         let accessPrefix = access.map { "\($0) " } ?? ""
@@ -57,6 +58,7 @@ public struct SlotMacro: MemberMacro, ExtensionMacro {
         in context: some MacroExpansionContext
     ) throws -> [ExtensionDeclSyntax] {
         let access = accessModifier(of: declaration)
+        let slotsOptions = parseSlotsOptions(from: node)
         let plain = collectPlainProperties(from: declaration)
         let slots = collectSlots(from: declaration, node: node, context: context)
         guard !slots.isEmpty else { return [] }
@@ -70,7 +72,9 @@ public struct SlotMacro: MemberMacro, ExtensionMacro {
             return []
         }
 
-        let groups = extensionGroups(for: slots, plain: plain, access: access)
+        let groups = extensionGroups(
+            for: slots, plain: plain, access: access,
+            viewBuilderTrailing: slotsOptions.viewBuilderTrailing)
         return groups.compactMap { (whereClause, specs) in
             buildExtension(type: type, whereClause: whereClause, specs: specs)
         }
@@ -214,10 +218,30 @@ private func isFunctionType(_ type: TypeSyntax) -> Bool {
     return false
 }
 
+// MARK: - Parsing @Slots options
+
+private struct SlotsOptions {
+    var viewBuilderTrailing = false
+}
+
+private func parseSlotsOptions(from attr: AttributeSyntax) -> SlotsOptions {
+    var result = SlotsOptions()
+    guard case .argumentList(let args) = attr.arguments else { return result }
+    for arg in args {
+        if arg.expression.as(MemberAccessExprSyntax.self)?.declName.baseName.text
+            == "viewBuilderTrailing"
+        {
+            result.viewBuilderTrailing = true
+        }
+    }
+    return result
+}
+
 // MARK: - Parameter ordering
 
-/// Parameters are sorted by tier to match SwiftUI conventions:
-/// value params first, then closures, then @ViewBuilder closures last.
+/// When `viewBuilderTrailing` is enabled, parameters are sorted by tier to match
+/// SwiftUI conventions: value params first, then closures, then @ViewBuilder closures last.
+/// Otherwise, declaration order is preserved.
 private enum ParamTier: Comparable {
     case value
     case closure
@@ -229,6 +253,14 @@ private struct ParamEntry {
     let assignment: String
     let tier: ParamTier
     let declarationIndex: Int
+}
+
+private func sortEntries(_ entries: inout [ParamEntry], viewBuilderTrailing: Bool) {
+    if viewBuilderTrailing {
+        entries.sort { ($0.tier, $0.declarationIndex) < ($1.tier, $1.declarationIndex) }
+    } else {
+        entries.sort { $0.declarationIndex < $1.declarationIndex }
+    }
 }
 
 private func paramEntry(for p: PlainProperty) -> ParamEntry {
@@ -483,11 +515,13 @@ private func allCombinations(for slots: [SlotDescriptor]) -> [[SlotMode]] {
 
 /// Groups all non-trivial combinations by their where-clause key so that `.text` and `.string`
 /// variants for the same set of fixed generics land in the same extension.
-/// Parameters are sorted by tier: value params, then closures, then @ViewBuilder closures.
+/// When `viewBuilderTrailing` is true, parameters are sorted by tier: value params, then
+/// closures, then @ViewBuilder closures. Otherwise, declaration order is preserved.
 private func extensionGroups(
     for slots: [SlotDescriptor],
     plain: [PlainProperty] = [],
-    access: String? = nil
+    access: String? = nil,
+    viewBuilderTrailing: Bool = false
 ) -> [(whereClause: String, specs: [InitSpec])] {
     // Use an ordered structure to preserve natural combo order
     var order: [String] = []
@@ -606,7 +640,7 @@ private func extensionGroups(
             }
         }
 
-        entries.sort { ($0.tier, $0.declarationIndex) < ($1.tier, $1.declarationIndex) }
+        sortEntries(&entries, viewBuilderTrailing: viewBuilderTrailing)
 
         let key = constraints.joined(separator: ", ")
         let spec = InitSpec(
