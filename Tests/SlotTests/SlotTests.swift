@@ -417,31 +417,31 @@ final class SlotTests: XCTestCase {
                 }
 
                 extension Card where Subtitle == Text {
-                    init(subtitle: LocalizedStringResource, @ViewBuilder title: () -> Title, @ViewBuilder actions: () -> Actions) {
-                        self.subtitle = Text(subtitle)
+                    init(@ViewBuilder title: () -> Title, subtitle: LocalizedStringResource, @ViewBuilder actions: () -> Actions) {
                         self.title = title()
+                        self.subtitle = Text(subtitle)
                         self.actions = Optional(actions())
                     }
 
                     @_disfavoredOverload
-                    init(subtitle: String, @ViewBuilder title: () -> Title, @ViewBuilder actions: () -> Actions) {
-                        self.subtitle = Text(subtitle)
+                    init(@ViewBuilder title: () -> Title, subtitle: String, @ViewBuilder actions: () -> Actions) {
                         self.title = title()
+                        self.subtitle = Text(subtitle)
                         self.actions = Optional(actions())
                     }
                 }
 
                 extension Card where Subtitle == Text, Actions == Never {
-                    init(subtitle: LocalizedStringResource, @ViewBuilder title: () -> Title) {
-                        self.subtitle = Text(subtitle)
+                    init(@ViewBuilder title: () -> Title, subtitle: LocalizedStringResource) {
                         self.title = title()
+                        self.subtitle = Text(subtitle)
                         self.actions = nil
                     }
 
                     @_disfavoredOverload
-                    init(subtitle: String, @ViewBuilder title: () -> Title) {
-                        self.subtitle = Text(subtitle)
+                    init(@ViewBuilder title: () -> Title, subtitle: String) {
                         self.title = title()
+                        self.subtitle = Text(subtitle)
                         self.actions = nil
                     }
                 }
@@ -578,35 +578,35 @@ final class SlotTests: XCTestCase {
                 }
 
                 extension Card where Body == Text {
-                    init(body_: LocalizedStringResource, @ViewBuilder title: () -> Title, @ViewBuilder subtitle: () -> Subtitle, @ViewBuilder footer: () -> Footer) {
-                        self.body_ = Text(body_)
+                    init(@ViewBuilder title: () -> Title, @ViewBuilder subtitle: () -> Subtitle, body_: LocalizedStringResource, @ViewBuilder footer: () -> Footer) {
                         self.title = title()
                         self.subtitle = Optional(subtitle())
+                        self.body_ = Text(body_)
                         self.footer = Optional(footer())
                     }
 
                     @_disfavoredOverload
-                    init(body_: String, @ViewBuilder title: () -> Title, @ViewBuilder subtitle: () -> Subtitle, @ViewBuilder footer: () -> Footer) {
-                        self.body_ = Text(body_)
+                    init(@ViewBuilder title: () -> Title, @ViewBuilder subtitle: () -> Subtitle, body_: String, @ViewBuilder footer: () -> Footer) {
                         self.title = title()
                         self.subtitle = Optional(subtitle())
+                        self.body_ = Text(body_)
                         self.footer = Optional(footer())
                     }
                 }
 
                 extension Card where Body == Text, Footer == Never {
-                    init(body_: LocalizedStringResource, @ViewBuilder title: () -> Title, @ViewBuilder subtitle: () -> Subtitle) {
-                        self.body_ = Text(body_)
+                    init(@ViewBuilder title: () -> Title, @ViewBuilder subtitle: () -> Subtitle, body_: LocalizedStringResource) {
                         self.title = title()
                         self.subtitle = Optional(subtitle())
+                        self.body_ = Text(body_)
                         self.footer = nil
                     }
 
                     @_disfavoredOverload
-                    init(body_: String, @ViewBuilder title: () -> Title, @ViewBuilder subtitle: () -> Subtitle) {
-                        self.body_ = Text(body_)
+                    init(@ViewBuilder title: () -> Title, @ViewBuilder subtitle: () -> Subtitle, body_: String) {
                         self.title = title()
                         self.subtitle = Optional(subtitle())
+                        self.body_ = Text(body_)
                         self.footer = nil
                     }
                 }
@@ -630,34 +630,34 @@ final class SlotTests: XCTestCase {
                 }
 
                 extension Card where Subtitle == Never, Body == Text {
-                    init(body_: LocalizedStringResource, @ViewBuilder title: () -> Title, @ViewBuilder footer: () -> Footer) {
-                        self.body_ = Text(body_)
+                    init(@ViewBuilder title: () -> Title, body_: LocalizedStringResource, @ViewBuilder footer: () -> Footer) {
                         self.title = title()
+                        self.body_ = Text(body_)
                         self.footer = Optional(footer())
                         self.subtitle = nil
                     }
 
                     @_disfavoredOverload
-                    init(body_: String, @ViewBuilder title: () -> Title, @ViewBuilder footer: () -> Footer) {
-                        self.body_ = Text(body_)
+                    init(@ViewBuilder title: () -> Title, body_: String, @ViewBuilder footer: () -> Footer) {
                         self.title = title()
+                        self.body_ = Text(body_)
                         self.footer = Optional(footer())
                         self.subtitle = nil
                     }
                 }
 
                 extension Card where Subtitle == Never, Body == Text, Footer == Never {
-                    init(body_: LocalizedStringResource, @ViewBuilder title: () -> Title) {
-                        self.body_ = Text(body_)
+                    init(@ViewBuilder title: () -> Title, body_: LocalizedStringResource) {
                         self.title = title()
+                        self.body_ = Text(body_)
                         self.subtitle = nil
                         self.footer = nil
                     }
 
                     @_disfavoredOverload
-                    init(body_: String, @ViewBuilder title: () -> Title) {
-                        self.body_ = Text(body_)
+                    init(@ViewBuilder title: () -> Title, body_: String) {
                         self.title = title()
+                        self.body_ = Text(body_)
                         self.subtitle = nil
                         self.footer = nil
                     }
@@ -698,67 +698,67 @@ final class SlotTests: XCTestCase {
                 }
 
                 extension Card where Title == Text, Body == Text {
-                    init(title: LocalizedStringResource, body_: LocalizedStringResource, @ViewBuilder subtitle: () -> Subtitle, @ViewBuilder footer: () -> Footer) {
+                    init(title: LocalizedStringResource, @ViewBuilder subtitle: () -> Subtitle, body_: LocalizedStringResource, @ViewBuilder footer: () -> Footer) {
                         self.title = Text(title)
-                        self.body_ = Text(body_)
                         self.subtitle = Optional(subtitle())
+                        self.body_ = Text(body_)
                         self.footer = Optional(footer())
                     }
 
                     @_disfavoredOverload
-                    init(title: LocalizedStringResource, body_: String, @ViewBuilder subtitle: () -> Subtitle, @ViewBuilder footer: () -> Footer) {
+                    init(title: LocalizedStringResource, @ViewBuilder subtitle: () -> Subtitle, body_: String, @ViewBuilder footer: () -> Footer) {
                         self.title = Text(title)
-                        self.body_ = Text(body_)
                         self.subtitle = Optional(subtitle())
+                        self.body_ = Text(body_)
                         self.footer = Optional(footer())
                     }
 
                     @_disfavoredOverload
-                    init(title: String, body_: LocalizedStringResource, @ViewBuilder subtitle: () -> Subtitle, @ViewBuilder footer: () -> Footer) {
+                    init(title: String, @ViewBuilder subtitle: () -> Subtitle, body_: LocalizedStringResource, @ViewBuilder footer: () -> Footer) {
                         self.title = Text(title)
-                        self.body_ = Text(body_)
                         self.subtitle = Optional(subtitle())
+                        self.body_ = Text(body_)
                         self.footer = Optional(footer())
                     }
 
                     @_disfavoredOverload
-                    init(title: String, body_: String, @ViewBuilder subtitle: () -> Subtitle, @ViewBuilder footer: () -> Footer) {
+                    init(title: String, @ViewBuilder subtitle: () -> Subtitle, body_: String, @ViewBuilder footer: () -> Footer) {
                         self.title = Text(title)
-                        self.body_ = Text(body_)
                         self.subtitle = Optional(subtitle())
+                        self.body_ = Text(body_)
                         self.footer = Optional(footer())
                     }
                 }
 
                 extension Card where Title == Text, Body == Text, Footer == Never {
-                    init(title: LocalizedStringResource, body_: LocalizedStringResource, @ViewBuilder subtitle: () -> Subtitle) {
+                    init(title: LocalizedStringResource, @ViewBuilder subtitle: () -> Subtitle, body_: LocalizedStringResource) {
                         self.title = Text(title)
-                        self.body_ = Text(body_)
                         self.subtitle = Optional(subtitle())
+                        self.body_ = Text(body_)
                         self.footer = nil
                     }
 
                     @_disfavoredOverload
-                    init(title: LocalizedStringResource, body_: String, @ViewBuilder subtitle: () -> Subtitle) {
+                    init(title: LocalizedStringResource, @ViewBuilder subtitle: () -> Subtitle, body_: String) {
                         self.title = Text(title)
-                        self.body_ = Text(body_)
                         self.subtitle = Optional(subtitle())
+                        self.body_ = Text(body_)
                         self.footer = nil
                     }
 
                     @_disfavoredOverload
-                    init(title: String, body_: LocalizedStringResource, @ViewBuilder subtitle: () -> Subtitle) {
+                    init(title: String, @ViewBuilder subtitle: () -> Subtitle, body_: LocalizedStringResource) {
                         self.title = Text(title)
-                        self.body_ = Text(body_)
                         self.subtitle = Optional(subtitle())
+                        self.body_ = Text(body_)
                         self.footer = nil
                     }
 
                     @_disfavoredOverload
-                    init(title: String, body_: String, @ViewBuilder subtitle: () -> Subtitle) {
+                    init(title: String, @ViewBuilder subtitle: () -> Subtitle, body_: String) {
                         self.title = Text(title)
-                        self.body_ = Text(body_)
                         self.subtitle = Optional(subtitle())
+                        self.body_ = Text(body_)
                         self.footer = nil
                     }
                 }
@@ -941,19 +941,19 @@ final class SlotTests: XCTestCase {
                 }
 
                 extension Banner where Label == Text {
-                    init(isEnabled: Bool, badge: Int = 0, label: LocalizedStringResource, @ViewBuilder icon: () -> Icon) {
+                    init(isEnabled: Bool, badge: Int = 0, @ViewBuilder icon: () -> Icon, label: LocalizedStringResource) {
                         self.isEnabled = isEnabled
                         self.badge = badge
-                        self.label = Text(label)
                         self.icon = Optional(icon())
+                        self.label = Text(label)
                     }
 
                     @_disfavoredOverload
-                    init(isEnabled: Bool, badge: Int = 0, label: String, @ViewBuilder icon: () -> Icon) {
+                    init(isEnabled: Bool, badge: Int = 0, @ViewBuilder icon: () -> Icon, label: String) {
                         self.isEnabled = isEnabled
                         self.badge = badge
-                        self.label = Text(label)
                         self.icon = Optional(icon())
+                        self.label = Text(label)
                     }
                 }
 
@@ -1085,15 +1085,15 @@ final class SlotTests: XCTestCase {
                 }
 
                 extension Chip where Label == Text {
-                    init(label: LocalizedStringResource, @ViewBuilder icon: () -> Icon) {
-                        self.label = Text(label)
+                    init(@ViewBuilder icon: () -> Icon, label: LocalizedStringResource) {
                         self.icon = Optional(icon())
+                        self.label = Text(label)
                     }
 
                     @_disfavoredOverload
-                    init(label: String, @ViewBuilder icon: () -> Icon) {
-                        self.label = Text(label)
+                    init(@ViewBuilder icon: () -> Icon, label: String) {
                         self.icon = Optional(icon())
+                        self.label = Text(label)
                     }
                 }
 
@@ -1508,9 +1508,9 @@ final class SlotTests: XCTestCase {
                 }
 
                 extension EventCard where When == DateResolver.Output {
-                    init(when_: DateResolver.Input, @ViewBuilder title: () -> Title) {
-                        self.when_ = DateResolver.resolve(when_)
+                    init(@ViewBuilder title: () -> Title, when_: DateResolver.Input) {
                         self.title = title()
+                        self.when_ = DateResolver.resolve(when_)
                     }
                 }
 

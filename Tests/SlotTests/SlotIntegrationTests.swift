@@ -119,7 +119,7 @@ final class SlotIntegrationTests: XCTestCase {
             isSelected: false, leading: { Image(systemName: "star") }, content: { Text("hi") }, trailing: { Text("→") })
         // LocalizedStringResource content, generic leading + trailing
         let _: Row<Image, Text, Text> = Row(
-            isSelected: true, content: "hi", leading: { Image(systemName: "star") }, trailing: { Text("→") })
+            isSelected: true, leading: { Image(systemName: "star") }, content: "hi", trailing: { Text("→") })
         // image leading, LocalizedStringResource content, generic trailing
         let _: Row<Image, Text, Text> = Row(
             isSelected: false, leadingSystemName: "star", content: "hi", trailing: { Text("→") })
