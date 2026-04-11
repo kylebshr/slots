@@ -47,10 +47,10 @@ struct Examples_Previews: PreviewProvider {
                 // ToolbarRow examples
                 ToolbarRow(title: "Inbox")
                 ToolbarRow(
-                    title: "Details",
                     leading: {
                         Button(action: {}) { Image(systemName: "chevron.left") }
                     },
+                    title: "Details",
                     trailing: {
                         Button(action: {}) { Image(systemName: "ellipsis") }
                     })
