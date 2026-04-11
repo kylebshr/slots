@@ -1149,7 +1149,7 @@ final class SlotTests: XCTestCase {
 
     // MARK: - Parameter ordering tests
 
-    func testClosurePropertyOrdering() {
+    func testClosurePropertyDeclarationOrder() {
         assertMacroExpansion(
             """
             @Slots
