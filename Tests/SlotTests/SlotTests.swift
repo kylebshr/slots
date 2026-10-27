@@ -1630,7 +1630,9 @@ final class SlotTests: XCTestCase {
             """
             @Slots
             struct Row<Badge: View>: View {
-                @Slot(.text) @Slot(SomeResolver.self, .unlabeled) var badge: Badge
+                @Slot(.text)
+                @Slot(SomeResolver.self, .unlabeled)
+                var badge: Badge
                 var body: some View { EmptyView() }
             }
             """,
@@ -1670,7 +1672,9 @@ final class SlotTests: XCTestCase {
             """
             @Slots
             struct Badge<Label: View>: View {
-                @Slot(.text) @Slot(.text, .unlabeled) var label: Label
+                @Slot(.text)
+                @Slot(.text, .unlabeled)
+                var label: Label
                 var body: some View { EmptyView() }
             }
             """,
@@ -1698,10 +1702,10 @@ final class SlotTests: XCTestCase {
             diagnostics: [
                 DiagnosticSpec(
                     message: "@Slot on 'label': each option or resolver can only appear once per property",
-                    line: 3, column: 18),
+                    line: 4, column: 5),
                 DiagnosticSpec(
                     message: "@Slot on 'label': each option or resolver can only appear once per property",
-                    line: 3, column: 18),
+                    line: 4, column: 5),
             ],
             macros: testMacros
         )
