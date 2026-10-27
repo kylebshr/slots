@@ -95,6 +95,23 @@ private struct PrivateRow<Label: View>: View {
     var body: some View { EmptyView() }
 }
 
+@Slots
+struct ScopedLabelRow<Badge: View>: View {
+    @Slot(.text) @Slot(PriorityResolver.self, .unlabeled) var badge: Badge
+    var body: some View { EmptyView() }
+}
+
+struct InternalStyle {
+    var spacing: Double
+}
+
+@Slots(.internalInit)
+public struct InternalInitRow<Label: View>: View {
+    var style: InternalStyle
+    @Slot(.text) var label: Label
+    public var body: some View { EmptyView() }
+}
+
 // MARK: - Integration tests
 //
 // These tests verify the macro-generated inits actually compile and produce
@@ -219,5 +236,18 @@ final class SlotIntegrationTests: XCTestCase {
 
     func testPrivateStruct() {
         let _: PrivateRow<Text> = PrivateRow(label: "hi")
+    }
+
+    // MARK: Each @Slot attribute labels only its own variants
+
+    func testScopedUnlabeled() {
+        let _: ScopedLabelRow<Text> = ScopedLabelRow(badge: "hi")
+        let _: ScopedLabelRow<PriorityBadge> = ScopedLabelRow(.high)
+    }
+
+    // MARK: .internalInit allows internal property types on a public struct
+
+    func testInternalInit() {
+        let _: InternalInitRow<Text> = InternalInitRow(style: InternalStyle(spacing: 8), label: "hi")
     }
 }

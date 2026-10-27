@@ -123,6 +123,23 @@ The available options are:
 |---|---|
 | `.text` | Adds `init` variants where this slot accepts `LocalizedStringResource` (preferred) or `String` (disfavored), both stored as `Text(...)` |
 | `.systemImage` | Adds an `init` variant where this slot accepts `{name}SystemName: String`, stored as `Image(systemName:)` |
+| `SomeResolver.self` | Adds an `init` variant where this slot accepts the resolver's `Input`, stored as its `Output` |
+| `.unlabeled` | Omits the parameter label (`_ name:`) from the `.text` and resolver variants on the same `@Slot` attribute |
+| `.empty` | Adds an `init` variant that omits a non-optional slot and stores `EmptyView()` |
+
+A property can have more than one `@Slot` attribute. Each attribute's `.unlabeled` applies only to the variants on that attribute, so you can label one variant and not another:
+
+```swift
+@Slot(.text) @Slot(PriorityResolver.self, .unlabeled) var badge: Badge
+
+// Generated:
+// init(badge: LocalizedStringResource)   where Badge == Text
+// init(_ badge: Priority)                where Badge == PriorityResolver.Output
+```
+
+Each option or resolver can appear only once per property.
+
+Each slot needs its own generic parameter. A convenience init fixes the slot's parameter to one type (`Text`, `Never`, ...). That type then also applies to every other property that uses the same parameter. `@Slots` reports an error when two slots, or a slot and another property, share one.
 
 ### Optional slots
 
@@ -255,6 +272,22 @@ ActionButton(label: "Save", action: { print("saved") })
 // generic mode: closure → @ViewBuilder (trailing closure)
 ActionButton(action: { print("saved") }) {
     Text("Save").bold()
+}
+```
+
+## Access level
+
+Generated inits have the same access level as the struct, so a `public` component gets `public` inits. A `private` struct gets `fileprivate` inits, so the rest of the file can call them.
+
+A `public init` cannot expose a property whose type or default value is internal. For those structs, use `@Slots(.internalInit)` to generate `internal` inits instead:
+
+```swift
+@Slots(.internalInit)
+public struct Badge<Label: View>: View {
+    var style: InternalStyle
+    @Slot(.text) var label: Label
+
+    public var body: some View { ... }
 }
 ```
 

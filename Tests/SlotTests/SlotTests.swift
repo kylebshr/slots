@@ -1623,4 +1623,241 @@ final class SlotTests: XCTestCase {
         )
     }
 
+    // MARK: - Multiple @Slot attributes
+
+    func testUnlabeledAppliesOnlyToItsOwnAttribute() {
+        assertMacroExpansion(
+            """
+            @Slots
+            struct Row<Badge: View>: View {
+                @Slot(.text)
+                @Slot(SomeResolver.self, .unlabeled)
+                var badge: Badge
+                var body: some View { EmptyView() }
+            }
+            """,
+            expandedSource: """
+                struct Row<Badge: View>: View {
+                    var badge: Badge
+                    var body: some View { EmptyView() }
+
+                    init(@ViewBuilder badge: () -> Badge) {
+                        self.badge = badge()
+                    }
+                }
+
+                extension Row where Badge == Text {
+                    init(badge: LocalizedStringResource) {
+                        self.badge = Text(badge)
+                    }
+
+                    @_disfavoredOverload
+                    init(badge: String) {
+                        self.badge = Text(badge)
+                    }
+                }
+
+                extension Row where Badge == SomeResolver.Output {
+                    init(_ badge: SomeResolver.Input) {
+                        self.badge = SomeResolver.resolve(badge)
+                    }
+                }
+                """,
+            macros: testMacros
+        )
+    }
+
+    func testDuplicateVariantErrors() {
+        assertMacroExpansion(
+            """
+            @Slots
+            struct Badge<Label: View>: View {
+                @Slot(.text)
+                @Slot(.text, .unlabeled)
+                var label: Label
+                var body: some View { EmptyView() }
+            }
+            """,
+            expandedSource: """
+                struct Badge<Label: View>: View {
+                    var label: Label
+                    var body: some View { EmptyView() }
+
+                    init(@ViewBuilder label: () -> Label) {
+                        self.label = label()
+                    }
+                }
+
+                extension Badge where Label == Text {
+                    init(label: LocalizedStringResource) {
+                        self.label = Text(label)
+                    }
+
+                    @_disfavoredOverload
+                    init(label: String) {
+                        self.label = Text(label)
+                    }
+                }
+                """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "@Slot on 'label': each option or resolver can only appear once per property",
+                    line: 4, column: 5),
+                DiagnosticSpec(
+                    message: "@Slot on 'label': each option or resolver can only appear once per property",
+                    line: 4, column: 5),
+            ],
+            macros: testMacros
+        )
+    }
+
+    func testUnlabeledWithoutVariantErrors() {
+        assertMacroExpansion(
+            """
+            @Slots
+            struct Badge<Icon: View>: View {
+                @Slot(.systemImage, .unlabeled) var icon: Icon?
+                var body: some View { EmptyView() }
+            }
+            """,
+            expandedSource: """
+                struct Badge<Icon: View>: View {
+                    var icon: Icon?
+                    var body: some View { EmptyView() }
+
+                    init(@ViewBuilder icon: () -> Icon) {
+                        self.icon = Optional(icon())
+                    }
+                }
+
+                extension Badge where Icon == Image {
+                    init(iconSystemName: String?) {
+                        self.icon = iconSystemName.map {
+                            Image(systemName: $0)
+                        }
+                    }
+                }
+
+                extension Badge where Icon == Never {
+                    init() {
+                        self.icon = nil
+                    }
+                }
+                """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message:
+                        "@Slot on 'icon': .unlabeled only applies to .text and resolvers in the same @Slot attribute",
+                    line: 3, column: 5),
+                DiagnosticSpec(
+                    message:
+                        "@Slot on 'icon': .unlabeled only applies to .text and resolvers in the same @Slot attribute",
+                    line: 3, column: 5),
+            ],
+            macros: testMacros
+        )
+    }
+
+    // MARK: - Shared generic parameters
+
+    func testSlotsSharingGenericParameterError() {
+        assertMacroExpansion(
+            """
+            @Slots
+            struct Row<Icon: View>: View {
+                var leading: Icon?
+                var trailing: Icon?
+                var body: some View { EmptyView() }
+            }
+            """,
+            expandedSource: """
+                struct Row<Icon: View>: View {
+                    var leading: Icon?
+                    var trailing: Icon?
+                    var body: some View { EmptyView() }
+
+                    init(@ViewBuilder leading: () -> Icon, @ViewBuilder trailing: () -> Icon) {
+                        self.leading = Optional(leading())
+                        self.trailing = Optional(trailing())
+                    }
+                }
+                """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message:
+                        "Generic parameter 'Icon' is used by 'leading', 'trailing'; each slot needs its own generic parameter",
+                    line: 1, column: 1)
+            ],
+            macros: testMacros
+        )
+    }
+
+    func testSlotSharingGenericParameterWithPlainPropertyError() {
+        assertMacroExpansion(
+            """
+            @Slots
+            struct Row<Icon: View>: View {
+                var leading: Icon
+                var trailing: Icon?
+                var body: some View { EmptyView() }
+            }
+            """,
+            expandedSource: """
+                struct Row<Icon: View>: View {
+                    var leading: Icon
+                    var trailing: Icon?
+                    var body: some View { EmptyView() }
+
+                    init(@ViewBuilder leading: () -> Icon, @ViewBuilder trailing: () -> Icon) {
+                        self.leading = leading()
+                        self.trailing = Optional(trailing())
+                    }
+                }
+                """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message:
+                        "Generic parameter 'Icon' is used by 'leading', 'trailing'; each slot needs its own generic parameter",
+                    line: 1, column: 1)
+            ],
+            macros: testMacros
+        )
+    }
+
+    // MARK: - Access level
+
+    func testInternalInitOnPublicStruct() {
+        assertMacroExpansion(
+            """
+            @Slots(.internalInit)
+            public struct Badge<Label: View>: View {
+                @Slot(.text) var label: Label
+                public var body: some View { EmptyView() }
+            }
+            """,
+            expandedSource: """
+                public struct Badge<Label: View>: View {
+                    var label: Label
+                    public var body: some View { EmptyView() }
+
+                    init(@ViewBuilder label: () -> Label) {
+                        self.label = label()
+                    }
+                }
+
+                extension Badge where Label == Text {
+                    init(label: LocalizedStringResource) {
+                        self.label = Text(label)
+                    }
+
+                    @_disfavoredOverload
+                    init(label: String) {
+                        self.label = Text(label)
+                    }
+                }
+                """,
+            macros: testMacros
+        )
+    }
+
 }
