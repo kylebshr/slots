@@ -14,8 +14,8 @@ jobs:
       matrix:
         include:
           - name: Newest swift-syntax
-            os: macos-26
-            xcode: "26.6"
+            os: xcode-27
+            xcode: "27.2"
           - name: Oldest swift-syntax
             os: macos-15
             xcode: "16.0"
