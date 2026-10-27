@@ -87,10 +87,57 @@ public struct SlotMacro: MemberMacro, ExtensionMacro {
 /// Returns `nil` when no modifier is present (defaults to internal).
 private func accessModifier(of declaration: some DeclGroupSyntax) -> String? {
     let accessKeywords: Set<String> = ["public", "package", "internal", "fileprivate", "private"]
-    return declaration.as(StructDeclSyntax.self)?
+    let modifier = declaration.as(StructDeclSyntax.self)?
         .modifiers
         .first { accessKeywords.contains($0.name.text) }?
         .name.text
+    // A `private init` would be private to the struct itself, so the rest of the file couldn't call it.
+    return modifier == "private" ? "fileprivate" : modifier
+}
+
+// MARK: - Generic parameters
+
+/// Names of the struct's generic parameters that are constrained to `View`,
+/// either in the parameter clause (`<Icon: View>`) or in a where clause (`where Icon: View`).
+private func viewGenericNames(of structDecl: StructDeclSyntax) -> Set<String> {
+    var names: Set<String> = []
+    for param in structDecl.genericParameterClause?.parameters ?? [] {
+        if let inherited = param.inheritedType, isViewConstraint(inherited) {
+            names.insert(param.name.text)
+        }
+    }
+    for requirement in structDecl.genericWhereClause?.requirements ?? [] {
+        if case .conformanceRequirement(let conformance) = requirement.requirement,
+            let name = conformance.leftType.as(IdentifierTypeSyntax.self)?.name.text,
+            isViewConstraint(conformance.rightType)
+        {
+            names.insert(name)
+        }
+    }
+    return names
+}
+
+private func isViewConstraint(_ type: TypeSyntax) -> Bool {
+    if let composition = type.as(CompositionTypeSyntax.self) {
+        return composition.elements.contains { isViewConstraint($0.type) }
+    }
+    if let member = type.as(MemberTypeSyntax.self) {
+        return member.name.text == "View"
+    }
+    return type.as(IdentifierTypeSyntax.self)?.name.text == "View"
+}
+
+// MARK: - Attributes
+
+private func attributeNames(of varDecl: VariableDeclSyntax) -> [String] {
+    varDecl.attributes.compactMap {
+        $0.as(AttributeSyntax.self)?.attributeName.as(IdentifierTypeSyntax.self)?.name.text
+    }
+}
+
+/// A `let` with an initial value can't be assigned again, so it's excluded from the init.
+private func isInitializedConstant(_ varDecl: VariableDeclSyntax, _ binding: PatternBindingSyntax) -> Bool {
+    varDecl.bindingSpecifier.tokenKind == .keyword(.let) && binding.initializer != nil
 }
 
 // MARK: - Plain (non-slot) required property
@@ -106,6 +153,7 @@ private struct PlainProperty {
     let isClosure: Bool
     let needsEscaping: Bool
     let isBinding: Bool
+    let isViewBuilder: Bool
     let declarationIndex: Int
 }
 
@@ -120,9 +168,7 @@ private let skippedPropertyWrappers: Set<String> = [
 private func collectPlainProperties(from declaration: some DeclGroupSyntax) -> [PlainProperty] {
     guard let structDecl = declaration.as(StructDeclSyntax.self) else { return [] }
 
-    let genericNames = Set(
-        structDecl.genericParameterClause?.parameters.map { $0.name.text } ?? []
-    )
+    let viewGenerics = viewGenericNames(of: structDecl)
 
     let skippedModifiers: Set<String> = ["static", "class", "lazy"]
 
@@ -130,61 +176,62 @@ private func collectPlainProperties(from declaration: some DeclGroupSyntax) -> [
         guard
             let varDecl = member.decl.as(VariableDeclSyntax.self),
             // Skip static, class, and lazy properties
-            !varDecl.modifiers.contains(where: { skippedModifiers.contains($0.name.text) }),
-            // Not annotated with @Slot
-            !varDecl.attributes.contains(where: {
-                $0.as(AttributeSyntax.self)?.attributeName
-                    .as(IdentifierTypeSyntax.self)?.name.text == "Slot"
-            })
+            !varDecl.modifiers.contains(where: { skippedModifiers.contains($0.name.text) })
         else { return [] }
 
-        // Detect property wrapper attributes
-        let wrapperName = varDecl.attributes.lazy.compactMap {
-            $0.as(AttributeSyntax.self)?.attributeName
-                .as(IdentifierTypeSyntax.self)?.name.text
-        }.first(where: { $0 == "Binding" || skippedPropertyWrappers.contains($0) })
+        let attributes = attributeNames(of: varDecl)
 
-        // Skip internal-state property wrappers entirely
-        if let wrapper = wrapperName, skippedPropertyWrappers.contains(wrapper) {
+        // Skip @Slot properties and internal-state property wrappers
+        if attributes.contains(where: { $0 == "Slot" || skippedPropertyWrappers.contains($0) }) {
             return []
         }
 
-        let isBinding = wrapperName == "Binding"
+        let isBinding = attributes.contains("Binding")
+        let isViewBuilder = attributes.contains("ViewBuilder")
 
         return varDecl.bindings.compactMap { binding -> PlainProperty? in
             guard
                 binding.accessorBlock == nil,  // not computed
+                !isInitializedConstant(varDecl, binding),
                 let identifier = binding.pattern.as(IdentifierPatternSyntax.self),
-                let typeAnnotation = binding.typeAnnotation?.type,
-                // Optional generics without @Slot are still auto-slots, skip them
-                !(typeAnnotation.as(OptionalTypeSyntax.self)?
-                    .wrappedType.as(IdentifierTypeSyntax.self)
-                    .map { genericNames.contains($0.name.text) } ?? false)
+                let typeAnnotation = binding.typeAnnotation?.type
             else { return nil }
 
-            // Required generic type without @Slot — include as @ViewBuilder closure param
-            if let typeName = typeAnnotation.as(IdentifierTypeSyntax.self)?.name.text,
-                genericNames.contains(typeName)
-            {
-                return PlainProperty(
-                    name: identifier.identifier.text,
-                    typeStr: typeName,
-                    defaultValue: nil,
-                    isGenericView: true,
-                    isClosure: false,
-                    needsEscaping: false,
-                    isBinding: false,
-                    declarationIndex: memberIndex
-                )
+            if !isBinding {
+                // Optional View generics without @Slot are still auto-slots, skip them
+                if let inner = typeAnnotation.as(OptionalTypeSyntax.self)?
+                    .wrappedType.as(IdentifierTypeSyntax.self)?.name.text,
+                    viewGenerics.contains(inner)
+                {
+                    return nil
+                }
+
+                // Required View generic without @Slot — include as @ViewBuilder closure param
+                if let typeName = typeAnnotation.as(IdentifierTypeSyntax.self)?.name.text,
+                    viewGenerics.contains(typeName)
+                {
+                    return PlainProperty(
+                        name: identifier.identifier.text,
+                        typeStr: typeName,
+                        defaultValue: nil,
+                        isGenericView: true,
+                        isClosure: false,
+                        needsEscaping: false,
+                        isBinding: false,
+                        isViewBuilder: false,
+                        declarationIndex: memberIndex
+                    )
+                }
             }
 
-            let closure = isFunctionType(typeAnnotation)
+            let closure = !isBinding && isFunctionType(typeAnnotation)
             let optional = typeAnnotation.is(OptionalTypeSyntax.self)
             let typeStr =
                 isBinding
                 ? "Binding<\(typeAnnotation.trimmedDescription)>" : typeAnnotation.trimmedDescription
+            // `Binding<T?>` can't be defaulted to `nil`
             let defaultValue =
-                binding.initializer?.value.trimmedDescription ?? (optional ? "nil" : nil)
+                binding.initializer?.value.trimmedDescription ?? (optional && !isBinding ? "nil" : nil)
             return PlainProperty(
                 name: identifier.identifier.text,
                 typeStr: typeStr,
@@ -193,6 +240,7 @@ private func collectPlainProperties(from declaration: some DeclGroupSyntax) -> [
                 isClosure: closure,
                 needsEscaping: closure && !optional,
                 isBinding: isBinding,
+                isViewBuilder: isViewBuilder && closure,
                 declarationIndex: memberIndex
             )
         }
@@ -272,15 +320,17 @@ private func paramEntry(for p: PlainProperty) -> ParamEntry {
             declarationIndex: p.declarationIndex
         )
     }
+    let viewBuilderPrefix = p.isViewBuilder ? "@ViewBuilder " : ""
     let escapingPrefix = p.needsEscaping ? "@escaping " : ""
     let paramStr =
-        p.defaultValue.map { "\(p.name): \(escapingPrefix)\(p.typeStr) = \($0)" }
-        ?? "\(p.name): \(escapingPrefix)\(p.typeStr)"
+        p.defaultValue.map { "\(viewBuilderPrefix)\(p.name): \(escapingPrefix)\(p.typeStr) = \($0)" }
+        ?? "\(viewBuilderPrefix)\(p.name): \(escapingPrefix)\(p.typeStr)"
     let assignment = p.isBinding ? "self._\(p.name) = \(p.name)" : "self.\(p.name) = \(p.name)"
+    let tier: ParamTier = p.isViewBuilder ? .viewBuilder : p.isClosure ? .closure : .value
     return ParamEntry(
         param: paramStr,
         assignment: assignment,
-        tier: p.isClosure ? .closure : .value,
+        tier: tier,
         declarationIndex: p.declarationIndex
     )
 }
@@ -335,6 +385,7 @@ private func collectSlots(
     let genericNames = Set(
         structDecl.genericParameterClause?.parameters.map { $0.name.text } ?? []
     )
+    let viewGenerics = viewGenericNames(of: structDecl)
 
     let skippedModifiers: Set<String> = ["static", "class", "lazy"]
 
@@ -352,9 +403,17 @@ private func collectSlots(
 
         let hasSlotAttr = !slotAttrs.isEmpty
 
+        // Bindings and internal-state property wrappers are never automatic slots
+        if !hasSlotAttr,
+            attributeNames(of: varDecl).contains(where: { $0 == "Binding" || skippedPropertyWrappers.contains($0) })
+        {
+            return []
+        }
+
         return varDecl.bindings.compactMap { binding -> SlotDescriptor? in
             guard
                 binding.accessorBlock == nil,
+                !isInitializedConstant(varDecl, binding),
                 let identifier = binding.pattern.as(IdentifierPatternSyntax.self),
                 let typeAnnotation = binding.typeAnnotation?.type
             else { return nil }
@@ -367,10 +426,11 @@ private func collectSlots(
                 options.merge(parseSlotOptions(from: attr))
             }
 
-            // `Icon?` — always a slot, @Slot annotation optional
+            // `Icon?` — a slot when `Icon` is constrained to `View` or the property is @Slot annotated
             if let inner = typeAnnotation.as(OptionalTypeSyntax.self)?
                 .wrappedType.as(IdentifierTypeSyntax.self)?.name.text,
-                genericNames.contains(inner)
+                genericNames.contains(inner),
+                hasSlotAttr || viewGenerics.contains(inner)
             {
                 if options.flags.contains(.empty), let attr = slotAttrs.first {
                     context.diagnose(

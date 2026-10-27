@@ -50,6 +50,51 @@ struct Row<Leading: View, Content: View, Trailing: View>: View {
     var body: some View { EmptyView() }
 }
 
+@Slots
+struct IdentifiedRow<ID: Hashable, Label: View>: View {
+    var id: ID
+    var parentID: ID?
+    @Slot(.text) var label: Label
+    var body: some View { EmptyView() }
+}
+
+@Slots
+struct GenericPicker<Value: Hashable, Label: View, Icon: View>: View {
+    @Binding var selection: Value
+    @Binding var highlighted: Value?
+    @Binding var icon: Icon?
+    @Slot(.text) var label: Label
+    var body: some View { EmptyView() }
+}
+
+@Slots
+struct BuilderRow<Content: View, Label: View>: View {
+    @ViewBuilder var content: () -> Content
+    @Slot(.text) var label: Label
+    var body: some View { EmptyView() }
+}
+
+@Slots
+struct ConstantRow<Label: View, Icon: View>: View {
+    let spacing: Double = 8
+    let icon: Icon? = nil
+    @Slot(.text) var label: Label
+    var body: some View { EmptyView() }
+}
+
+@Slots
+struct WhereClauseRow<Label, Icon>: View where Label: View, Icon: View {
+    @Slot(.text) var label: Label
+    var icon: Icon?
+    var body: some View { EmptyView() }
+}
+
+@Slots
+private struct PrivateRow<Label: View>: View {
+    @Slot(.text) var label: Label
+    var body: some View { EmptyView() }
+}
+
 // MARK: - Integration tests
 //
 // These tests verify the macro-generated inits actually compile and produce
@@ -131,5 +176,48 @@ final class SlotIntegrationTests: XCTestCase {
         let _: Row<Never, Text, Never> = Row(isSelected: false, content: "hi")
         // no leading, no trailing, generic content
         let _: Row<Never, Text, Never> = Row(isSelected: false) { Text("hi") }
+    }
+
+    // MARK: Generic parameters that aren't views are plain properties
+
+    func testNonViewGenericParameters() {
+        let _: IdentifiedRow<Int, Text> = IdentifiedRow(id: 1, label: "hi")
+        let _: IdentifiedRow<Int, Text> = IdentifiedRow(id: 1, parentID: 2, label: "hi")
+    }
+
+    // MARK: Bindings to generic and optional values
+
+    func testGenericAndOptionalBindings() {
+        let _: GenericPicker<Int, Text, Image> = GenericPicker(
+            selection: .constant(1), highlighted: .constant(nil), icon: .constant(nil), label: "hi")
+    }
+
+    // MARK: @ViewBuilder closure properties keep @ViewBuilder
+
+    func testViewBuilderClosureProperty() {
+        let _: BuilderRow<TupleView<(Text, Text)>, Text> = BuilderRow(
+            content: {
+                Text("a")
+                Text("b")
+            }, label: "hi")
+    }
+
+    // MARK: Initialized constants are excluded
+
+    func testInitializedConstantsExcluded() {
+        let _: ConstantRow<Text, Image> = ConstantRow(label: "hi")
+    }
+
+    // MARK: View constraints in a where clause
+
+    func testWhereClauseConstraints() {
+        let _: WhereClauseRow<Text, Never> = WhereClauseRow(label: "hi")
+        let _: WhereClauseRow<Text, Image> = WhereClauseRow(label: "hi") { Image(systemName: "star") }
+    }
+
+    // MARK: Private structs are usable from the rest of the file
+
+    func testPrivateStruct() {
+        let _: PrivateRow<Text> = PrivateRow(label: "hi")
     }
 }
