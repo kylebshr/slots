@@ -7,10 +7,31 @@ on:
 
 jobs:
   ci:
-    runs-on: macos-15
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Newest swift-syntax
+            os: macos-26
+            xcode: "26.6"
+          - name: Oldest swift-syntax
+            os: macos-15
+            xcode: "16.0"
+            swift-syntax: "510.0.0"
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_${{ matrix.xcode }}.app
+
+      - name: Pin swift-syntax
+        if: matrix.swift-syntax
+        run: |
+          swift package resolve
+          swift package resolve swift-syntax --version ${{ matrix.swift-syntax }}
 
       - name: Build
         run: swift build
