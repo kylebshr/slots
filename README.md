@@ -249,7 +249,13 @@ init(isSelected: Bool, badge: Int = 0, content: String)
 
 ## Parameter ordering
 
-Generated init parameters follow the order of the stored properties in the struct. Non-optional closure parameters automatically get `@escaping`.
+Generated init parameters are sorted by kind, as SwiftUI does. They come in this order, and declaration order applies within each group:
+
+1. Value parameters: plain stored properties (`style: Int`, `isEnabled: Bool`) and text, string, and system image slot parameters (`title: LocalizedStringResource`, `iconSystemName: String`)
+2. Closure parameters: plain stored properties with function types (`action: @escaping () -> Void`). Non-optional closures automatically get `@escaping`.
+3. `@ViewBuilder` closures: slots in generic mode, generic view properties, and closure properties marked `@ViewBuilder` (`@ViewBuilder label: () -> Label`)
+
+So the last `@ViewBuilder` parameter supports trailing closure syntax, like SwiftUI's `Button`:
 
 ```swift
 @Slots
@@ -261,19 +267,15 @@ struct ActionButton<Label: View>: View {
 }
 
 ActionButton(label: "Save", action: { print("saved") })
-ActionButton(label: { Text("Save").bold() }, action: { print("saved") })
+ActionButton(action: { print("saved") }) {
+    Text("Save").bold()
+}
 ```
 
-To sort parameters by kind instead, as SwiftUI does, use `@Slots(.trailingViewBuilders)`. The parameters then come in this order, and declaration order applies within each group:
-
-1. Value parameters: plain stored properties (`style: Int`, `isEnabled: Bool`) and text, string, and system image slot parameters (`title: LocalizedStringResource`, `iconSystemName: String`)
-2. Closure parameters: plain stored properties with function types (`action: @escaping () -> Void`)
-3. `@ViewBuilder` closures: slots in generic mode, generic view properties, and closure properties marked `@ViewBuilder` (`@ViewBuilder label: () -> Label`)
-
-With this option, the last `@ViewBuilder` parameter supports trailing closure syntax:
+To keep parameters in the order the properties are declared, use `@Slots(.declarationOrder)`:
 
 ```swift
-@Slots(.trailingViewBuilders)
+@Slots(.declarationOrder)
 struct ActionButton<Label: View>: View {
     @Slot(.text) var label: Label
     var action: () -> Void
@@ -282,9 +284,7 @@ struct ActionButton<Label: View>: View {
 }
 
 ActionButton(label: "Save", action: { print("saved") })
-ActionButton(action: { print("saved") }) {
-    Text("Save").bold()
-}
+ActionButton(label: { Text("Save").bold() }, action: { print("saved") })
 ```
 
 ## Access level
