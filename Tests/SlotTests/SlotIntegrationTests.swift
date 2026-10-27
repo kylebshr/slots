@@ -181,7 +181,7 @@ final class SlotIntegrationTests: XCTestCase {
             isSelected: false, leading: { Image(systemName: "star") }, content: { Text("hi") }, trailing: { Text("→") })
         // LocalizedStringResource content, generic leading + trailing
         let _: Row<Image, Text, Text> = Row(
-            isSelected: true, leading: { Image(systemName: "star") }, content: "hi", trailing: { Text("→") })
+            isSelected: true, content: "hi", leading: { Image(systemName: "star") }, trailing: { Text("→") })
         // image leading, LocalizedStringResource content, generic trailing
         let _: Row<Image, Text, Text> = Row(
             isSelected: false, leadingSystemName: "star", content: "hi", trailing: { Text("→") })
@@ -212,11 +212,10 @@ final class SlotIntegrationTests: XCTestCase {
     // MARK: @ViewBuilder closure properties keep @ViewBuilder
 
     func testViewBuilderClosureProperty() {
-        let _: BuilderRow<TupleView<(Text, Text)>, Text> = BuilderRow(
-            content: {
-                Text("a")
-                Text("b")
-            }, label: "hi")
+        let _: BuilderRow<TupleView<(Text, Text)>, Text> = BuilderRow(label: "hi") {
+            Text("a")
+            Text("b")
+        }
     }
 
     // MARK: Initialized constants are excluded
